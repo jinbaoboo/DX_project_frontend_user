@@ -33,6 +33,11 @@ type RecognizedAppliance = {
   confidence: number;
 };
 
+type CameraEffectConstraint = MediaTrackConstraintSet & {
+  backgroundBlur?: boolean;
+  backgroundSegmentationMask?: boolean;
+};
+
 const frameByAppliance: Record<
   ApplianceId,
   {
@@ -169,17 +174,12 @@ export function CapturePanel({
     }
 
     try {
+      stopCamera();
       setCameraMessage("");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 1920 },
-        },
-      });
+      const stream = await createCameraStream();
 
       streamRef.current = stream;
+      await disableCameraBackgroundEffects(stream);
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -190,6 +190,67 @@ export function CapturePanel({
     } catch {
       setCameraReady(false);
       setCameraMessage("모바일에서 실제 카메라를 쓰려면 카메라 권한 허용 또는 HTTPS 환경이 필요합니다.");
+    }
+  }
+
+  async function createCameraStream() {
+    const baseVideoConstraints = {
+      width: { ideal: 1280 },
+      height: { ideal: 1920 },
+    };
+
+    const cameraRequests: MediaStreamConstraints[] = [
+      {
+        audio: false,
+        video: {
+          ...baseVideoConstraints,
+          facingMode: { exact: "environment" },
+        },
+      },
+      {
+        audio: false,
+        video: {
+          ...baseVideoConstraints,
+          facingMode: { ideal: "environment" },
+        },
+      },
+      {
+        audio: false,
+        video: baseVideoConstraints,
+      },
+    ];
+
+    let lastError: unknown;
+
+    for (const constraints of cameraRequests) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError;
+  }
+
+  async function disableCameraBackgroundEffects(stream: MediaStream) {
+    const [videoTrack] = stream.getVideoTracks();
+    if (!videoTrack?.applyConstraints) return;
+
+    try {
+      const cameraEffectConstraints: MediaTrackConstraints = {
+        advanced: [
+          {
+            backgroundBlur: false,
+            backgroundSegmentationMask: false,
+          } as CameraEffectConstraint,
+        ],
+      };
+
+      // Browser/device support differs, so unsupported camera effect controls are ignored.
+      await videoTrack.applyConstraints(cameraEffectConstraints);
+    } catch {
+      // Some browsers do not expose background effect controls. The app still shows the raw stream it receives.
     }
   }
 
@@ -208,7 +269,7 @@ export function CapturePanel({
     const generatedFileName = `swapit-${applianceId}-${Date.now()}.jpg`;
 
     if (!video || !video.videoWidth || !video.videoHeight) {
-      createDemoCapture(generatedFileName);
+      setCameraMessage("카메라 화면이 준비되면 촬영해주세요.");
       return;
     }
 
@@ -218,30 +279,18 @@ export function CapturePanel({
     const context = canvas.getContext("2d");
 
     if (!context) {
-      createDemoCapture(generatedFileName);
+      setCameraMessage("촬영 이미지를 만들 수 없습니다. 다시 시도해주세요.");
       return;
     }
 
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          createDemoCapture(generatedFileName);
-          return;
-        }
 
-        setPreviewUrl((current) => {
-          if (current) URL.revokeObjectURL(current);
-          return URL.createObjectURL(blob);
-        });
-        onFileChange(generatedFileName);
-        stopCamera();
-        setPhase("recognizing");
-        window.setTimeout(() => setPhase("review"), 900);
-      },
-      "image/jpeg",
-      0.92,
-    );
+    const capturedImageUrl = canvas.toDataURL("image/jpeg", 0.92);
+    setPreviewUrl(capturedImageUrl);
+    onFileChange(generatedFileName);
+    stopCamera();
+    setPhase("recognizing");
+    window.setTimeout(() => setPhase("review"), 900);
   }
 
   function createDemoCapture(generatedFileName: string) {
@@ -285,31 +334,32 @@ export function CapturePanel({
       <div className="absolute inset-0">
         <video
           ref={videoRef}
-          className={`h-full w-full object-cover ${cameraReady ? "opacity-100" : "opacity-0"}`}
+          className={`h-full w-full object-cover [backdrop-filter:none] [filter:none] ${cameraReady ? "opacity-100" : "opacity-0"}`}
           muted
           playsInline
+          style={{ filter: "none", backdropFilter: "none" }}
         />
         {!cameraReady ? (
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_42%_24%,rgba(217,226,236,.92),transparent_18%),radial-gradient(circle_at_72%_60%,rgba(167,95,45,.8),transparent_34%),linear-gradient(150deg,#151a21_0%,#313843_44%,#1f1210_100%)] blur-[1px]" />
+          <DemoCameraFallback />
         ) : null}
-        <div className="absolute inset-0 bg-black/35" />
+        <div className="pointer-events-none absolute inset-0 bg-black/10" />
       </div>
 
       <div className="relative z-20 flex items-center justify-between px-6 pt-5">
         <button className="text-lg font-semibold text-white" onClick={onCancel} type="button">
           Cancel
         </button>
-        <span className="rounded-full bg-black/35 px-3 py-1 text-xs font-black text-white/85 backdrop-blur">
+        <span className="rounded-full bg-black/35 px-3 py-1 text-xs font-black text-white/85">
           {applianceLabel}
         </span>
       </div>
 
       <div className="relative z-10 flex h-[calc(100%-150px)] items-center justify-center px-3">
         <div className={`relative border-2 border-[#22ff36] ${frame.className}`}>
-          <div className="absolute left-1/2 top-5 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-center text-[11px] font-black leading-4 text-white/90 backdrop-blur">
+          <div className="absolute left-1/2 top-5 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-center text-[11px] font-black leading-4 text-white/90">
             가전이 프레임 안에 꽉 차도록 촬영해주세요
           </div>
-          <div className="absolute inset-x-5 bottom-8 rounded-2xl bg-black/45 px-4 py-3 text-center backdrop-blur">
+          <div className="absolute inset-x-5 bottom-8 rounded-2xl bg-black/45 px-4 py-3 text-center">
             <ScanLine className="mx-auto text-white" size={26} />
             <p className="mt-2 text-sm font-black">{frame.title}</p>
             <p className="mt-1 text-xs font-semibold text-white/70">{frame.description}</p>
@@ -318,14 +368,14 @@ export function CapturePanel({
       </div>
 
       {cameraMessage ? (
-        <div className="absolute left-6 right-6 top-[92px] z-30 rounded-2xl bg-black/55 px-4 py-3 text-center text-xs font-bold leading-5 text-white/85 backdrop-blur">
+        <div className="absolute left-6 right-6 top-[92px] z-30 rounded-2xl bg-black/55 px-4 py-3 text-center text-xs font-bold leading-5 text-white/85">
           {cameraMessage}
         </div>
       ) : null}
 
       <div className="absolute bottom-6 left-0 right-0 z-20 flex items-center justify-center gap-9">
         <button
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white"
           onClick={startCamera}
           type="button"
         >
@@ -343,7 +393,7 @@ export function CapturePanel({
         </button>
 
         <button
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-[10px] font-black text-white backdrop-blur"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-[10px] font-black text-white"
           onClick={() => createDemoCapture(`swapit-demo-${Date.now()}.jpg`)}
           type="button"
         >
@@ -351,6 +401,21 @@ export function CapturePanel({
         </button>
       </div>
     </section>
+  );
+}
+
+function DemoCameraFallback() {
+  const applianceLabel = "";
+
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-[#252a31] [backdrop-filter:none] [filter:none]">
+      <div className="absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(255,255,255,.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.08)_1px,transparent_1px)] [background-size:34px_34px]" />
+      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/25 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/25 to-transparent" />
+      <div className="hidden">
+        {applianceLabel} 촬영 대기 화면
+      </div>
+    </div>
   );
 }
 
@@ -421,7 +486,7 @@ function ReviewCaptureView({
   onRetake: () => void;
 }) {
   return (
-    <section className="phone-scroll flex min-h-full flex-col overflow-y-auto bg-white p-5 shadow-sm">
+    <section className="phone-scroll flex h-full min-h-0 flex-col overflow-y-auto bg-white p-5 pb-0 shadow-sm">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-black text-lgred">STEP 1</p>
@@ -432,11 +497,27 @@ function ReviewCaptureView({
         </span>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-3xl bg-[#111318]">
+      <div className="mt-4 flex items-center justify-between">
+        <p className="text-sm font-black text-ink">방금 촬영한 사진</p>
+        <span className="text-[11px] font-bold text-slate-400">촬영 결과</span>
+      </div>
+
+      <div
+        className="mt-2 block w-full overflow-hidden rounded-3xl bg-[#111318] shadow-sm"
+        style={{ display: "block", minHeight: 224 }}
+      >
         {previewUrl ? (
-          <img src={previewUrl} alt="촬영한 가전" className="h-44 w-full object-cover" />
+          <img
+            src={previewUrl}
+            alt="촬영한 가전"
+            className="block h-56 w-full object-cover [filter:none]"
+            style={{ display: "block", height: 224, width: "100%", objectFit: "cover" }}
+          />
         ) : (
-          <div className="flex h-44 flex-col items-center justify-center text-white/70">
+          <div
+            className="flex h-56 flex-col items-center justify-center text-white/70"
+            style={{ height: 224 }}
+          >
             <Camera size={34} />
             <p className="mt-3 max-w-[230px] truncate text-xs font-bold">{fileName}</p>
           </div>
@@ -500,7 +581,7 @@ function ReviewCaptureView({
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
+      <div className="sticky bottom-0 -mx-5 mt-5 grid grid-cols-2 gap-2 bg-white/95 px-5 pb-5 pt-3 shadow-[0_-14px_28px_rgba(255,255,255,.92)]">
         <button
           className="h-12 rounded-xl border border-lgred/20 bg-white text-sm font-black text-lgred"
           onClick={onRetake}
@@ -509,11 +590,11 @@ function ReviewCaptureView({
           다시 촬영
         </button>
         <button
-          className="h-12 rounded-xl bg-lgred text-sm font-black text-white"
+          className="h-12 rounded-xl bg-lgred px-2 text-[13px] font-black text-white"
           onClick={onAnalyze}
           type="button"
         >
-          감정하기
+          정보 확인 후 감정하기
         </button>
       </div>
     </section>
