@@ -262,6 +262,14 @@ async function callLookupSpecsApi(modelName: string): Promise<{
   return response.json();
 }
 
+const GUIDE_FRAME_SIZES: Record<ApplianceId, { width: number; height: number }> = {
+  refrigerator:    { width: 250, height: 435 },
+  washing_machine: { width: 285, height: 355 },
+  air_conditioner: { width: 260, height: 440 },
+  microwave:       { width: 290, height: 200 },
+  tv:              { width: 290, height: 163 },
+};
+
 export function CapturePanel({
   fileName,
   loading,
@@ -425,8 +433,9 @@ export function CapturePanel({
       audio: false,
       video: {
         facingMode: { ideal: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 1920 },
+        width: { ideal: 1920, max: 4096 },
+        height: { ideal: 1080, max: 4096 },
+        frameRate: { ideal: 30 },
       },
     };
   }
@@ -540,9 +549,31 @@ export function CapturePanel({
       return;
     }
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const frame = frameRef.current;
+    if (frame) {
+      // 녹색 가이드 박스 영역만 크롭
+      const videoRect = video.getBoundingClientRect();
+      const frameRect = frame.getBoundingClientRect();
+
+      // CSS 픽셀 → 실제 비디오 픽셀 변환 비율
+      const scaleX = video.videoWidth / videoRect.width;
+      const scaleY = video.videoHeight / videoRect.height;
+
+      const sx = Math.max(0, (frameRect.left - videoRect.left) * scaleX);
+      const sy = Math.max(0, (frameRect.top - videoRect.top) * scaleY);
+      const sw = Math.min(frameRect.width * scaleX, video.videoWidth - sx);
+      const sh = Math.min(frameRect.height * scaleY, video.videoHeight - sy);
+
+      canvas.width = Math.round(sw);
+      canvas.height = Math.round(sh);
+      context.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    } else {
+      // 가이드 박스 없는 경우(스티커 촬영 등) 전체 프레임
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+
     saveCapture(
       canvas.toDataURL("image/jpeg", 0.92),
       `swapit-${target}-${applianceId}-${Date.now()}.jpg`,
@@ -675,7 +706,7 @@ export function CapturePanel({
           <p className="rounded-full bg-black/55 px-4 py-2 text-[11px] font-black text-white/90">
             글씨가 잘 보이도록 가까이 대주세요
           </p>
-          <div className="h-[150px] w-[310px] rounded-2xl border-2 border-dashed border-white/65" />
+          <div ref={frameRef} className="h-[150px] w-[310px] rounded-2xl border-2 border-dashed border-white/65" />
           <p className="text-center text-[11px] font-semibold leading-5 text-white/55">
             후면·측면·제품 내부 어디든 라벨이 있는 곳을 찍어주세요
           </p>
@@ -745,16 +776,15 @@ export function CapturePanel({
         </span>
       </div>
 
-      <div className="relative z-10 flex h-[calc(100%-150px)] items-center justify-center px-6">
-        <div className="w-full max-w-[310px] rounded-[28px] border-2 border-[#35ff77] px-5 py-6">
-          <div className="rounded-2xl bg-black/45 px-4 py-3 text-center">
-            <ScanLine className="mx-auto text-white" size={24} />
-            <p className="mt-2 text-sm font-black">{targetDescriptions[target].title}</p>
-            <p className="mt-1 text-xs font-semibold leading-5 text-white/70">
-              {targetDescriptions[target].description}
-            </p>
-          </div>
-        </div>
+      <div className="absolute inset-x-0 z-10 flex flex-col items-center justify-center gap-3" style={{ top: 60, bottom: 120 }}>
+        <div
+          ref={frameRef}
+          className="rounded-[20px] border-2 border-[#35ff77]"
+          style={GUIDE_FRAME_SIZES[applianceId]}
+        />
+        <p className="rounded-full bg-black/55 px-4 py-2 text-center text-[11px] font-black text-white/90">
+          {targetDescriptions[target].title}
+        </p>
       </div>
 
       {cameraMessage ? (
