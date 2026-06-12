@@ -1,5 +1,6 @@
 "use client";
 
+import { GoogleMap, MarkerF, useJsApiLoader } from "@/components/maps/google-maps-compat";
 import type { SwapRequest } from "@/types/swap";
 import { CalendarCheck, Crosshair, Loader2, MapPin, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -56,7 +57,7 @@ function todayString() {
 
 function formatDateLabel(value: string) {
   if (!value) {
-    return "날짜를 선택해 주세요.";
+    return "날짜를 선택해 주세요";
   }
 
   const date = new Date(`${value}T00:00:00`);
@@ -136,8 +137,8 @@ export function BookingPanel({ swapRequest, loading, onBooking }: BookingPanelPr
         STEP 3. 수거 예약
       </div>
       <p className="mt-1 text-xs leading-5 text-slate-500">
-        시간 예약은 날짜와 시간을 직접 선택하고, 바로콜은 현재 위치 또는 직접 입력한 주소를 기준으로
-        가장 가까운 수거 크루를 찾습니다.
+        시간 예약은 날짜와 시간을 직접 선택하고, 바로콜은 현재 위치 또는 직접 입력한 주소를 기준으로 가장 가까운
+        수거 크루를 찾습니다.
       </p>
 
       <div className="mt-4 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
@@ -220,7 +221,7 @@ function ScheduleBooking({
       <div className="mt-4 rounded-3xl bg-slate-50 p-4">
         <p className="text-sm font-black text-ink">예약 시간 선택</p>
         <p className="mt-1 text-xs font-semibold text-slate-400">
-          09:00부터 18:00까지, 30분 단위로 예약 가능 시간만 표시됩니다.
+          09:00부터 18:00까지, 30분 단위로 예약 가능한 시간만 표시됩니다.
         </p>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {timeSlots.map((time) => {
@@ -291,25 +292,31 @@ function InstantCallBooking({
   const [pickupMethod, setPickupMethod] = useState<PickupMethod>("gps");
   const [pickupAddress, setPickupAddress] = useState(defaultAddress);
   const [detailAddress, setDetailAddress] = useState("");
-  const [gpsCoords, setGpsCoords] = useState<PickupCoordinates | null>(defaultPickupCoords);
-  const [manualCoords, setManualCoords] = useState<PickupCoordinates | null>(defaultPickupCoords);
+  const [gpsCoords, setGpsCoords] = useState<PickupCoordinates | null>(null);
+  const [manualCoords, setManualCoords] = useState<PickupCoordinates | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [matching, setMatching] = useState(false);
 
   const activeCoords = pickupMethod === "gps" ? gpsCoords : manualCoords;
-  const mapLabel = pickupMethod === "gps" ? pickupAddress : detailAddress || pickupAddress;
+  const mapLabel = locating
+    ? "현재 위치 확인 중..."
+    : pickupMethod === "gps"
+      ? pickupAddress || "현재 위치를 확인해 주세요"
+      : detailAddress || pickupAddress || "수거 위치를 검색해 주세요";
 
   const refreshCurrentLocation = async () => {
     if (!isSecureGpsAvailable()) {
+      setGpsCoords(null);
       setLocationError(
-        "현재 접속 주소에서는 브라우저가 GPS를 차단하고 있습니다. localhost 또는 HTTPS에서 다시 열거나 직접 입력으로 진행해 주세요.",
+        "현재 접속 환경에서는 GPS 사용이 제한되어 있습니다. HTTPS 환경에서 위치 권한을 허용하거나 직접 입력으로 진행해 주세요.",
       );
-      return;
+      return null;
     }
 
     setLocating(true);
     setLocationError("");
+
     try {
       const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
@@ -323,17 +330,21 @@ function InstantCallBooking({
         lat: coords.latitude,
         lng: coords.longitude,
       };
-      setGpsCoords(nextCoords);
-      setManualCoords(nextCoords);
 
+      let nextAddress = `현재 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`;
       try {
-        const resolved = await reverseGeocode(nextCoords.lat, nextCoords.lng);
-        setPickupAddress(resolved);
+        nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
       } catch {
-        setPickupAddress(`현재 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`);
+        // Reverse geocoding can fail independently from GPS. The coordinates are still valid.
       }
+
+      setGpsCoords(nextCoords);
+      setPickupAddress(nextAddress);
+      return { coords: nextCoords, address: nextAddress };
     } catch {
+      setGpsCoords(null);
       setLocationError("현재 위치를 가져오지 못했습니다. 위치 권한을 허용하거나 직접 입력으로 진행해 주세요.");
+      return null;
     } finally {
       setLocating(false);
     }
@@ -350,9 +361,19 @@ function InstantCallBooking({
     setLocationError("");
 
     let finalAddress = pickupAddress;
-    let finalCoords = activeCoords ?? defaultPickupCoords;
+    let finalCoords = activeCoords;
 
-    if (pickupMethod === "manual") {
+    if (pickupMethod === "gps") {
+      if (!finalCoords) {
+        const refreshed = await refreshCurrentLocation();
+        if (!refreshed) {
+          setMatching(false);
+          return;
+        }
+        finalAddress = refreshed.address;
+        finalCoords = refreshed.coords;
+      }
+    } else {
       const trimmedAddress = pickupAddress.trim();
       if (!trimmedAddress) {
         setLocationError("수거 위치를 직접 입력해 주세요.");
@@ -373,6 +394,12 @@ function InstantCallBooking({
       }
     }
 
+    if (!finalCoords) {
+      setLocationError("수거 위치 좌표를 확인하지 못했습니다. 다시 시도해 주세요.");
+      setMatching(false);
+      return;
+    }
+
     await new Promise((resolve) => window.setTimeout(resolve, 700));
 
     onBooking({
@@ -391,13 +418,14 @@ function InstantCallBooking({
     <div>
       <div className="overflow-hidden rounded-3xl bg-slate-50">
         <PickupPreviewMap
-          addressLabel={locating ? "현재 위치 확인 중..." : mapLabel}
+          addressLabel={mapLabel}
           coordinates={activeCoords}
+          pinLabel={pickupMethod === "gps" ? "내 위치" : "수거"}
         />
       </div>
 
       <p className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-xs font-bold leading-5 text-slate-500">
-        지도는 현재 선택한 위치를 기준으로 표시됩니다.
+        지도에는 현재 선택된 수거 위치가 표시됩니다.
       </p>
 
       <div className="mt-4 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
@@ -413,7 +441,7 @@ function InstantCallBooking({
             </span>
             <div>
               <p className="text-xs font-black text-slate-400">내 위치 확인</p>
-              <p className="mt-1 text-lg font-black text-ink">{pickupAddress}</p>
+              <p className="mt-1 text-lg font-black text-ink">{pickupAddress || "현재 위치를 확인해 주세요"}</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">필요하면 상세 위치를 추가해 주세요.</p>
             </div>
           </div>
@@ -462,41 +490,91 @@ function InstantCallBooking({
 function PickupPreviewMap({
   addressLabel,
   coordinates,
+  pinLabel,
 }: {
   addressLabel: string;
   coordinates: PickupCoordinates | null;
+  pinLabel: string;
 }) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
+
   if (!coordinates) {
-    return (
-      <div className="relative h-[360px] bg-[radial-gradient(circle_at_72%_24%,rgba(255,184,0,.25),transparent_18%),linear-gradient(180deg,#f5f6f8,#e8edf3)]">
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,.16)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,.16)_1px,transparent_1px)] bg-[length:28px_28px]" />
-        <div className="absolute left-4 top-4 rounded-full bg-white/95 px-4 py-2 text-sm font-black text-ink shadow">
-          {addressLabel}
-        </div>
-      </div>
-    );
+    return <PickupMapFallback addressLabel={addressLabel} />;
   }
 
-  const embedUrl = `https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}&z=16&output=embed`;
+  if (!apiKey) {
+    return <PickupMapFallback addressLabel={addressLabel} showMarker />;
+  }
+
+  return <GooglePickupPreviewMap addressLabel={addressLabel} apiKey={apiKey} coordinates={coordinates} pinLabel={pinLabel} />;
+}
+
+function GooglePickupPreviewMap({
+  addressLabel,
+  apiKey,
+  coordinates,
+  pinLabel,
+}: {
+  addressLabel: string;
+  apiKey: string;
+  coordinates: PickupCoordinates;
+  pinLabel: string;
+}) {
+  const { isLoaded, loadError } = useJsApiLoader({ googleMapsApiKey: apiKey });
+
+  if (loadError || !isLoaded) {
+    return <PickupMapFallback addressLabel={addressLabel} showMarker />;
+  }
 
   return (
     <div className="relative h-[360px] w-full overflow-hidden bg-slate-100">
-      <iframe
-        className="h-full w-full border-0"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        src={embedUrl}
-        title="pickup-preview-map"
-      />
+      <GoogleMap
+        center={coordinates}
+        mapContainerClassName="h-[360px] w-full"
+        options={{
+          clickableIcons: false,
+          disableDefaultUI: true,
+          gestureHandling: "greedy",
+          styles: [
+            { featureType: "poi", stylers: [{ visibility: "off" }] },
+            { featureType: "transit", stylers: [{ visibility: "off" }] },
+          ],
+        }}
+        zoom={16}
+      >
+        <MarkerF position={coordinates} label={{ color: "#ffffff", fontWeight: "900", text: pinLabel }} />
+      </GoogleMap>
       <div className="pointer-events-none absolute left-4 top-4 rounded-full bg-white/95 px-4 py-2 text-sm font-black text-ink shadow">
         {addressLabel}
       </div>
       <div className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-[#1f6fff] px-3 py-2 text-xs font-black text-white shadow-lg">
         <span className="flex items-center gap-1">
           <MapPin size={14} />
-          현재 위치
+          {pinLabel}
         </span>
       </div>
+    </div>
+  );
+}
+
+function PickupMapFallback({
+  addressLabel,
+  showMarker = false,
+}: {
+  addressLabel: string;
+  showMarker?: boolean;
+}) {
+  return (
+    <div className="relative h-[360px] bg-[radial-gradient(circle_at_72%_24%,rgba(255,184,0,.25),transparent_18%),linear-gradient(180deg,#f5f6f8,#e8edf3)]">
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,.16)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,.16)_1px,transparent_1px)] bg-[length:28px_28px]" />
+      <div className="absolute left-4 top-4 rounded-full bg-white/95 px-4 py-2 text-sm font-black text-ink shadow">
+        {addressLabel}
+      </div>
+      {showMarker ? (
+        <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-white bg-[#1f6fff] text-white shadow-xl">
+          <MapPin size={20} />
+        </div>
+      ) : null}
     </div>
   );
 }

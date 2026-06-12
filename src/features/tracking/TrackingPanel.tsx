@@ -84,7 +84,7 @@ function titleFor(status: PickupTrackingStatus) {
     case "en_route_hub":
       return "e-waste 공장으로 이동 중이에요";
     case "delivered_to_hub":
-      return "e-waste 공장 전달 완료";
+      return "e-waste 공장 전달이 완료되었어요";
     default:
       return "근처 수거 크루를 찾고 있어요";
   }
@@ -93,23 +93,23 @@ function titleFor(status: PickupTrackingStatus) {
 function subtitleFor(status: PickupTrackingStatus) {
   switch (status) {
     case "crew_assigned":
-      return "배정된 크루의 프로필과 이동 상태를 확인할 수 있어요.";
+      return "배정된 크루의 프로필과 위치를 확인할 수 있어요.";
     case "en_route_pickup":
-      return "실시간으로 크루 위치를 확인해 보세요.";
+      return "실시간 위치 갱신으로 크루 이동을 추적하고 있어요.";
     case "arrived":
       return "현장 확인과 수거가 진행 중입니다.";
     case "en_route_hub":
       return "수거 후 처리 허브로 이동하고 있습니다.";
     case "delivered_to_hub":
-      return "안심처리 완료 알림까지 이어서 확인할 수 있어요.";
+      return "안심 처리 완료 상태를 확인할 수 있어요.";
     default:
       return "매칭 점수가 높은 크루에게 우선 알림을 보내고 있습니다.";
   }
 }
 
 function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
-  const pickupLat = request.booking?.pickupLat ?? request.pickupRequest?.nearbyCrews?.[0]?.lat;
-  const pickupLng = request.booking?.pickupLng ?? request.pickupRequest?.nearbyCrews?.[0]?.lng;
+  const pickupLat = request.booking?.pickupLat;
+  const pickupLng = request.booking?.pickupLng;
 
   if (pickupLat == null || pickupLng == null) {
     return null;
@@ -123,9 +123,10 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
         lng: request.tracking.driverLocation.lng,
       }
     : null;
+
   const locationMessage = request.tracking.metrics?.locationLive
-    ? "실시간 GPS가 갱신되고 있어요."
-    : "최신 위치를 확인하는 중이에요.";
+    ? "크루 위치가 실시간으로 업데이트되고 있어요."
+    : "최신 위치를 다시 확인하는 중이에요.";
 
   return {
     status,
@@ -181,7 +182,7 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
     void fetchTracking();
     const timer = window.setInterval(() => {
       void fetchTracking();
-    }, 5000);
+    }, 2000);
 
     return () => {
       disposed = true;
@@ -196,7 +197,7 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
       <section className="rounded-[28px] bg-white p-6 shadow-sm">
         <h2 className="text-xl font-black text-ink">수거 추적 정보가 아직 준비되지 않았어요</h2>
         <p className="mt-2 text-sm font-semibold text-slate-500">
-          예약 또는 바로콜 요청이 접수되면 이 화면에서 수거 크루의 이동을 확인할 수 있습니다.
+          예약 또는 바로콜 요청이 접수되면 이 화면에서 수거 크루의 이동 상태를 확인할 수 있습니다.
         </p>
       </section>
     );
@@ -439,7 +440,7 @@ function helperText(stepKey: (typeof progressSteps)[number]["key"]) {
     case "ARRIVED":
       return "문앞 도착 후 실물 확인과 수거가 진행됩니다.";
     case "HUB_DONE":
-      return "e-waste 공장 전달 완료 시 안심처리 완료 알림이 표시됩니다.";
+      return "e-waste 공장 전달 완료 시 안심 처리 완료 알림이 표시됩니다.";
     default:
       return "";
   }

@@ -7,9 +7,18 @@ export type DemoUser = {
   thinqUserKey: string;
 };
 
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
 function resolveApiBaseUrl() {
+  const publicBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (publicBaseUrl) {
+    return trimTrailingSlash(publicBaseUrl);
+  }
+
   if (typeof window === "undefined") {
-    return process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8080";
+    return "http://127.0.0.1:8080";
   }
 
   return "";
@@ -27,7 +36,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.status}`);
+    const body = await response.text().catch(() => "");
+    throw new Error(body || `API request failed: ${response.status}`);
   }
 
   return response.json() as Promise<T>;
