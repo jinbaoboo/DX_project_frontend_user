@@ -182,13 +182,14 @@ export function GoogleCanvasMap({
     }
 
     if (stablePath.length > 1) {
-      polylineRef.current = new window.google.maps.Polyline({
+      const polyline = new window.google.maps.Polyline({
         path: stablePath,
         strokeColor: "#19c6bf",
         strokeOpacity: 0.9,
         strokeWeight: 5,
       });
-      polylineRef.current.setMap(map);
+      polyline.setMap(map);
+      polylineRef.current = polyline;
     }
 
     const points = [

@@ -12,6 +12,7 @@ import {
   Clock,
   CreditCard,
   Home,
+  Info,
   Microwave,
   Recycle,
   Refrigerator,
@@ -38,12 +39,14 @@ import { TrackingPanel } from "@/features/tracking/TrackingPanel";
 import {
   acceptPreValuation,
   analyzePhoto,
+  checkLoginId,
   completeFinalValuation,
   confirmBooking,
   createSwapRequestForUser,
-  demoLogin,
   getLatestSwapRequest,
+  login,
   requestInstantCall,
+  signup,
   updateAppliance,
   type DemoUser,
 } from "@/lib/api";
@@ -119,10 +122,10 @@ const marketProducts = [
 ] as const;
 
 export default function HomePage() {
-  const [thinQOpened, setThinQOpened] = useState(false);
+  const thinQOpened = true;
   const [swapItOpened, setSwapItOpened] = useState(false);
   const [marketOpened, setMarketOpened] = useState(false);
-  const [isOpening, setIsOpening] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const [swapStep, setSwapStep] = useState<SwapStep>("intro");
   const [selectedAppliance, setSelectedAppliance] = useState<ApplianceId>(applianceOptions[0].id);
   const [fileName, setFileName] = useState("");
@@ -185,8 +188,9 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    const splashTimer = window.setTimeout(() => setShowSplash(false), 1800);
     const savedUser = window.localStorage.getItem("swapit-demo-user");
-    if (!savedUser) return;
+    if (!savedUser) return () => window.clearTimeout(splashTimer);
 
     try {
       const parsedUser = JSON.parse(savedUser) as DemoUser;
@@ -195,6 +199,8 @@ export default function HomePage() {
     } catch {
       window.localStorage.removeItem("swapit-demo-user");
     }
+
+    return () => window.clearTimeout(splashTimer);
   }, []);
 
   useEffect(() => {
@@ -218,14 +224,16 @@ export default function HomePage() {
     return () => window.clearTimeout(timer);
   }, [homeSwapStatus]);
 
+  function handleAuthenticatedUser(data: DemoUser) {
+    setDemoUser(data);
+    window.localStorage.setItem("swapit-demo-user", JSON.stringify(data));
+    void restoreLatestSwapRequest(data);
+  }
+
   const loginMutation = useMutation({
-    mutationFn: ({ userName, phoneNumber }: { userName: string; phoneNumber: string }) =>
-      demoLogin(userName, phoneNumber),
-    onSuccess: (data) => {
-      setDemoUser(data);
-      window.localStorage.setItem("swapit-demo-user", JSON.stringify(data));
-      void restoreLatestSwapRequest(data);
-    },
+    mutationFn: ({ loginId, password }: { loginId: string; password: string }) =>
+      login(loginId, password),
+    onSuccess: handleAuthenticatedUser,
   });
 
   const createMutation = useMutation({
@@ -384,7 +392,9 @@ export default function HomePage() {
           <Camera size={13} className="text-slate-700" />
         </div>
         <div className="h-[100dvh] overflow-hidden rounded-none bg-cloud md:aspect-[402/874] md:h-auto md:rounded-[43px]">
-          {thinQOpened ? (
+          {showSplash ? (
+            <ThinQSplashScreen />
+          ) : thinQOpened ? (
             <div
               className={`relative flex h-full animate-[fadeIn_.18s_ease-out] flex-col ${
                 isSwapIntroScreen
@@ -405,12 +415,13 @@ export default function HomePage() {
                     loginMutation.error instanceof Error ? loginMutation.error.message : null
                   }
                   onBack={() => {
-                    setIsOpening(false);
                     setMarketOpened(false);
-                    setThinQOpened(false);
+                    setShowSplash(true);
+                    window.setTimeout(() => setShowSplash(false), 900);
                   }}
-                  onLogin={(userName, phoneNumber) =>
-                    loginMutation.mutate({ userName, phoneNumber })
+                  onAuthenticated={handleAuthenticatedUser}
+                  onLogin={(loginId, password) =>
+                    loginMutation.mutate({ loginId, password })
                   }
                 />
               ) : marketOpened ? (
@@ -513,9 +524,9 @@ export default function HomePage() {
                   homeSwapStatus={homeSwapStatus}
                   reservationLabel={reservationLabel}
                   onBackHome={() => {
-                    setIsOpening(false);
                     setMarketOpened(false);
-                    setThinQOpened(false);
+                    setShowSplash(true);
+                    window.setTimeout(() => setShowSplash(false), 900);
                   }}
                   onOpenSwapIt={() => {
                     resetExchangeFlow();
@@ -536,20 +547,40 @@ export default function HomePage() {
               )}
             </div>
           ) : (
-            <PhoneHomeScreen
-              isOpening={isOpening}
-              onOpenApp={() => {
-                setIsOpening(true);
-                window.setTimeout(() => {
-                  setThinQOpened(true);
-                  setIsOpening(false);
-                }, 230);
-              }}
-            />
+            <ThinQSplashScreen />
           )}
         </div>
       </section>
     </main>
+  );
+}
+
+function ThinQSplashScreen() {
+  return (
+    <div className="relative flex h-full overflow-hidden bg-[#dfeec1]">
+      <PhoneStatusBar isDark={false} />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(255,255,255,.45),transparent_28%),linear-gradient(180deg,rgba(230,244,203,.72),rgba(214,232,184,.96))]" />
+      <div className="absolute left-[11%] top-[26%] h-[22%] w-[24%] rounded-[32px] bg-white/18 blur-2xl" />
+      <div className="absolute bottom-[12%] left-[6%] h-28 w-12 rounded-t-full bg-[#458f63]" />
+      <div className="absolute bottom-[16%] left-[12%] h-24 w-10 rotate-[-18deg] rounded-t-full bg-[#5ca86f]" />
+      <div className="absolute bottom-[15%] left-[18%] h-20 w-9 rotate-[18deg] rounded-t-full bg-[#6fb97a]" />
+      <div className="absolute bottom-[15%] left-[9%] h-24 w-20 rounded-sm border-[10px] border-white/70 bg-[#b9dbb2]" />
+      <div className="absolute bottom-[20%] left-[9%] h-3 w-16 rounded-full bg-[#70bd83]" />
+      <div className="absolute bottom-[16%] right-[8%] h-[2px] w-[76%] bg-white/80" />
+      <div className="absolute bottom-[17%] right-[18%] h-28 w-[46%] rounded-t-[16px] bg-white/70 shadow-[0_20px_60px_rgba(68,92,58,.18)]" />
+      <div className="absolute bottom-[23%] right-[35%] h-32 w-20 rounded-t-full bg-[#c7473d]" />
+      <div className="absolute bottom-[36%] right-[39%] h-9 w-9 rounded-full bg-[#f0c45d]" />
+      <div className="absolute bottom-[25%] right-[27%] h-28 w-16 rotate-[8deg] rounded-full bg-[#e9f6e4]" />
+      <div className="absolute bottom-[32%] right-[19%] h-24 w-2 rotate-[35deg] rounded-full bg-[#2f3338]" />
+      <div className="absolute bottom-[42%] right-[16%] h-10 w-10 rounded-full border-[5px] border-[#2f3338]" />
+      <div className="absolute bottom-[31%] right-[43%] h-10 w-7 rounded-[8px] bg-[#27313b]" />
+      <div className="absolute left-1/2 top-[42%] z-10 -translate-x-1/2 text-center">
+        <p className="text-[44px] font-black tracking-tight text-white drop-shadow-[0_14px_26px_rgba(126,151,96,.28)]">
+          LG ThinQ
+        </p>
+      </div>
+      <div className="absolute bottom-2 left-1/2 h-1.5 w-32 -translate-x-1/2 rounded-full bg-black/30 md:hidden" />
+    </div>
   );
 }
 
@@ -617,121 +648,270 @@ function PhoneStatusBar({ isDark }: { isDark: boolean }) {
   );
 }
 
-function PhoneHomeScreen({
-  isOpening,
-  onOpenApp,
-}: {
-  isOpening: boolean;
-  onOpenApp: () => void;
-}) {
-  return (
-    <div className="relative flex h-full flex-col justify-between bg-[radial-gradient(circle_at_20%_10%,#8aa5ff_0%,transparent_28%),radial-gradient(circle_at_82%_18%,#ffb1d2_0%,transparent_24%),linear-gradient(160deg,#151a34_0%,#283a68_42%,#d8e7ef_100%)] px-6 pb-3">
-      <PhoneStatusBar isDark />
-      <div className="grid grid-cols-4 gap-x-5 gap-y-7 pt-6">
-        <button
-          aria-label="LG ThinQ 앱 열기"
-          className="relative flex flex-col items-center gap-2"
-          onClick={onOpenApp}
-        >
-          <span
-            className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-lgred text-white shadow-lg shadow-black/20 transition-transform duration-200 ease-out ${
-              isOpening ? "scale-110 opacity-0" : "scale-100 opacity-100"
-            }`}
-          >
-            <span className="text-[17px] font-black tracking-tight">ThinQ</span>
-          </span>
-          <span className="text-center text-xs font-bold text-white">LG ThinQ</span>
-        </button>
-        <HomeIcon label="Clock">
-          <Clock size={28} />
-        </HomeIcon>
-      </div>
-      <div className="mx-auto h-1.5 w-32 rounded-full bg-white/80" />
-      <div
-        className={`pointer-events-none absolute left-[24px] top-[110px] h-16 w-16 rounded-2xl bg-cloud transition-all duration-[230ms] ease-[cubic-bezier(.18,.86,.28,1)] ${
-          isOpening ? "left-0 top-0 h-full w-full rounded-[43px] opacity-100" : "opacity-0"
-        }`}
-      />
-    </div>
-  );
-}
-
 function DemoLoginScreen({
   loading,
   error,
   onBack,
+  onAuthenticated,
   onLogin,
 }: {
   loading: boolean;
   error: string | null;
   onBack: () => void;
-  onLogin: (userName: string, phoneNumber: string) => void;
+  onAuthenticated: (user: DemoUser) => void;
+  onLogin: (loginId: string, password: string) => void;
 }) {
-  const [userName, setUserName] = useState("Demo User");
-  const [phoneNumber, setPhoneNumber] = useState("010-4040-2404");
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [loginId, setLoginId] = useState("");
+  const [password, setPassword] = useState("");
+  const [userName, setUserName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [loginIdCheck, setLoginIdCheck] = useState<{
+    loginId: string;
+    available: boolean;
+    message: string;
+  } | null>(null);
+  const trimmedLoginId = loginId.trim();
+  const canLogin = trimmedLoginId.length > 0 && password.trim().length > 0;
+  const isLoginIdChecked = loginIdCheck?.loginId === trimmedLoginId && loginIdCheck.available;
+  const canSignup =
+    isLoginIdChecked && password.trim().length > 0 && userName.trim().length > 0 && phoneNumber.trim().length > 0;
+
+  const checkLoginIdMutation = useMutation({
+    mutationFn: checkLoginId,
+    onSuccess: (data, requestedLoginId) => {
+      setLoginIdCheck({
+        loginId: requestedLoginId.trim(),
+        available: data.available,
+        message: data.message,
+      });
+    },
+  });
+
+  const signupMutation = useMutation({
+    mutationFn: () =>
+      signup({
+        loginId: trimmedLoginId,
+        password,
+        userName: userName.trim(),
+        phoneNumber: phoneNumber.trim(),
+      }),
+    onSuccess: onAuthenticated,
+  });
+
+  const signupError = signupMutation.error instanceof Error ? signupMutation.error.message : null;
+
+  if (authMode === "signup") {
+    return (
+      <div className="phone-scroll flex min-h-0 flex-1 flex-col overflow-y-auto bg-white px-6 pb-7 pt-8">
+        <section>
+          <LgElectronicsLogo className="mb-12" />
+
+          <p className="mb-8 text-[30px] font-black tracking-tight text-black">회원가입</p>
+
+          <label className="block border-b-2 border-black pb-4">
+            <span className="sr-only">아이디</span>
+            <div className="flex items-center gap-3">
+              <input
+                className="h-12 min-w-0 flex-1 border-0 bg-transparent text-[21px] font-semibold text-black outline-none placeholder:text-[#8a8a8a]"
+                value={loginId}
+                onChange={(event) => {
+                  setLoginId(event.target.value);
+                  setLoginIdCheck(null);
+                }}
+                placeholder="사용할 아이디"
+              />
+              <button
+                className="shrink-0 rounded-full bg-slate-100 px-3 py-2 text-xs font-black text-lgred disabled:text-slate-400"
+                disabled={checkLoginIdMutation.isPending || trimmedLoginId.length < 4}
+                onClick={() => checkLoginIdMutation.mutate(trimmedLoginId)}
+                type="button"
+              >
+                {checkLoginIdMutation.isPending ? "확인 중" : "중복확인"}
+              </button>
+            </div>
+          </label>
+
+          {loginIdCheck ? (
+            <p className={`mt-2 text-sm font-bold ${loginIdCheck.available ? "text-emerald-600" : "text-red-600"}`}>
+              {loginIdCheck.message}
+            </p>
+          ) : checkLoginIdMutation.error instanceof Error ? (
+            <p className="mt-2 text-sm font-bold text-red-600">아이디 중복확인을 다시 시도해 주세요.</p>
+          ) : null}
+
+          <label className="mt-8 block border-b border-[#777] pb-3">
+            <span className="sr-only">비밀번호</span>
+            <input
+              className="h-12 w-full border-0 bg-transparent text-[21px] font-semibold text-black outline-none placeholder:text-[#8a8a8a]"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="비밀번호"
+              type="password"
+            />
+          </label>
+
+          <label className="mt-8 block border-b border-[#777] pb-3">
+            <span className="sr-only">이름</span>
+            <input
+              className="h-12 w-full border-0 bg-transparent text-[21px] font-semibold text-black outline-none placeholder:text-[#8a8a8a]"
+              value={userName}
+              onChange={(event) => setUserName(event.target.value)}
+              placeholder="이름"
+            />
+          </label>
+
+          <label className="mt-8 block border-b border-[#777] pb-3">
+            <span className="sr-only">전화번호</span>
+            <input
+              className="h-12 w-full border-0 bg-transparent text-[21px] font-semibold text-black outline-none placeholder:text-[#8a8a8a]"
+              value={phoneNumber}
+              onChange={(event) => setPhoneNumber(formatPhoneNumber(event.target.value))}
+              inputMode="numeric"
+              maxLength={13}
+              placeholder="010-0000-0000"
+            />
+          </label>
+
+          {signupError ? (
+            <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+              회원가입이 원활하지 않습니다. 입력 정보와 아이디 중복확인을 확인해 주세요.
+            </p>
+          ) : null}
+
+          <button
+            className="mt-8 h-16 w-full rounded-2xl bg-lgred text-[22px] font-black text-white disabled:bg-[#e8e8e8] disabled:text-[#b8b8b8]"
+            disabled={signupMutation.isPending || !canSignup}
+            onClick={() => signupMutation.mutate()}
+            type="button"
+          >
+            {signupMutation.isPending ? "회원가입 중..." : "회원가입"}
+          </button>
+
+          <button
+            className="mt-5 w-full text-center text-[18px] font-black text-[#555]"
+            onClick={() => {
+              setAuthMode("login");
+              setLoginIdCheck(null);
+            }}
+            type="button"
+          >
+            로그인 화면으로 돌아가기
+          </button>
+        </section>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-5 pb-6">
-      <header className="mb-5 flex items-center justify-between">
-        <button
-          aria-label="이전 화면으로 돌아가기"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow-sm"
-          onClick={onBack}
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="text-center">
-          <p className="text-xs font-black text-lgred">LG ThinQ</p>
-          <p className="text-[11px] font-semibold text-slate-400">Demo Login</p>
+    <div className="phone-scroll flex min-h-0 flex-1 flex-col overflow-y-auto bg-white px-6 pb-7 pt-8">
+      <section>
+        <LgElectronicsLogo className="mb-20" />
+
+        <label className="block border-b-2 border-black pb-4">
+          <span className="sr-only">아이디</span>
+          <input
+            className="h-12 w-full border-0 bg-transparent text-[21px] font-semibold text-black outline-none placeholder:text-[#8a8a8a]"
+            value={loginId}
+            onChange={(event) => setLoginId(event.target.value)}
+            placeholder="아이디"
+          />
+        </label>
+
+        <label className="mt-9 block border-b border-[#777] pb-3">
+          <span className="sr-only">비밀번호</span>
+          <input
+            className="h-12 w-full border-0 bg-transparent text-[21px] font-semibold text-black outline-none placeholder:text-[#8a8a8a]"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="비밀번호"
+            type="password"
+          />
+        </label>
+
+        <div className="mt-3 flex items-center justify-end gap-1 text-[18px] font-semibold text-[#858585]">
+          <span>로그인 정보 저장</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#b55b7d] text-white">
+            <Info size={15} strokeWidth={2.8} />
+          </span>
         </div>
-        <div className="h-9 w-9" />
-      </header>
-
-      <section className="rounded-2xl bg-white p-5 shadow-sm">
-        <p className="text-xs font-black text-lgred">SwapIt 데모 로그인</p>
-        <h1 className="mt-2 text-2xl font-black leading-tight text-ink">
-          신청 데이터를 DB에 저장할 사용자를 확인해 주세요
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-slate-500">
-          입력한 이름과 휴대폰 번호가 users 테이블에 저장되고, 이후 교환 신청과 예약 데이터가 이 사용자와 연결됩니다.
-        </p>
-
-        <label className="mt-6 block text-sm font-black text-ink">
-          이름
-          <input
-            className="mt-2 h-12 w-full rounded-xl border border-slate-200 px-4 text-base font-bold outline-none focus:border-lgred"
-            value={userName}
-            onChange={(event) => setUserName(event.target.value)}
-            placeholder="이름"
-          />
-        </label>
-
-        <label className="mt-4 block text-sm font-black text-ink">
-          휴대폰 번호
-          <input
-            className="mt-2 h-12 w-full rounded-xl border border-slate-200 px-4 text-base font-bold outline-none focus:border-lgred"
-            value={phoneNumber}
-            onChange={(event) => setPhoneNumber(event.target.value)}
-            placeholder="010-0000-0000"
-          />
-        </label>
 
         {error ? (
-          <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
-            로그인이 원활하지 않습니다. 백엔드 서버를 확인해 주세요.
+          <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+            아이디 또는 비밀번호가 올바르지 않거나 연결이 원활하지 않습니다.
           </p>
         ) : null}
 
         <button
-          className="mt-6 h-13 w-full rounded-xl bg-lgred text-base font-black text-white disabled:bg-slate-300"
-          disabled={loading || !userName.trim() || !phoneNumber.trim()}
-          onClick={() => onLogin(userName.trim(), phoneNumber.trim())}
+          className="mt-7 h-16 w-full rounded-2xl bg-lgred text-[22px] font-black text-white disabled:bg-[#e8e8e8] disabled:text-[#b8b8b8]"
+          disabled={loading || !canLogin}
+          onClick={() => onLogin(trimmedLoginId, password)}
+          type="button"
         >
-          {loading ? "로그인 중..." : "데모 로그인"}
+          {loading ? "ThinQ 사용자 확인 중..." : "로그인"}
         </button>
+
+        <div className="mt-5 flex items-center justify-center gap-3 text-[18px] font-semibold text-[#8a8a8a]">
+          <span>아이디 찾기</span>
+          <span className="text-[#d5d5d5]">|</span>
+          <span>비밀번호 재설정</span>
+          <span className="text-[#d5d5d5]">|</span>
+          <button
+            className="font-black text-[#555]"
+            onClick={() => {
+              setAuthMode("signup");
+              setLoginIdCheck(null);
+            }}
+            type="button"
+          >
+            회원가입
+          </button>
+        </div>
       </section>
     </div>
   );
+}
+
+function LgElectronicsLogo({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex items-center gap-3 ${className}`}>
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#c80f61]">
+        <svg aria-hidden="true" className="h-11 w-11" viewBox="0 0 64 64">
+          <circle cx="24" cy="21" r="5.2" fill="white" />
+          <path
+            d="M31 18v27h17"
+            fill="none"
+            stroke="white"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="5.2"
+          />
+          <path
+            d="M49 45c5-5 7-13 4.5-21.5C50 12 39 5 27.3 7.2 15.2 9.5 7.3 20.8 9.6 32.8 11.8 44 21.7 51.8 33 51.8"
+            fill="none"
+            stroke="white"
+            strokeLinecap="round"
+            strokeWidth="4.4"
+          />
+        </svg>
+      </span>
+      <span className="text-[34px] font-black tracking-[-0.03em] text-[#777]">LG전자</span>
+    </div>
+  );
+}
+
+function formatPhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+
+  if (digits.length <= 3) {
+    return digits;
+  }
+
+  if (digits.length <= 7) {
+    return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  }
+
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
 }
 
 function ThinQHomeScreen({
@@ -1477,7 +1657,9 @@ function WifiGlyph() {
       aria-hidden="true"
       className="h-[11px] w-[15px]"
       fill="none"
+      height="11"
       viewBox="0 0 15 11"
+      width="15"
       xmlns="http://www.w3.org/2000/svg"
     >
       <path

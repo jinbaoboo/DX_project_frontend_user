@@ -2,9 +2,15 @@ import type { SwapRequest } from "@/types/swap";
 
 export type DemoUser = {
   userId: number;
+  loginId?: string | null;
   userName: string;
   phoneNumber: string;
   thinqUserKey: string;
+};
+
+export type LoginIdCheckResponse = {
+  available: boolean;
+  message: string;
 };
 
 function trimTrailingSlash(value: string) {
@@ -80,6 +86,29 @@ export function demoLogin(userName: string, phoneNumber: string) {
   return request<DemoUser>("/api/auth/demo-login", {
     method: "POST",
     body: JSON.stringify({ userName, phoneNumber }),
+  });
+}
+
+export function login(loginId: string, password: string) {
+  return request<DemoUser>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ loginId, password }),
+  });
+}
+
+export function checkLoginId(loginId: string) {
+  return request<LoginIdCheckResponse>(`/api/auth/check-login-id?loginId=${encodeURIComponent(loginId)}`);
+}
+
+export function signup(payload: {
+  loginId: string;
+  password: string;
+  userName: string;
+  phoneNumber: string;
+}) {
+  return request<DemoUser>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 
