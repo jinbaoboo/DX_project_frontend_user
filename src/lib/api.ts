@@ -3,6 +3,8 @@ import type { SwapRequest } from "@/types/swap";
 export type DemoUser = {
   userId: number;
   loginId?: string | null;
+  email?: string | null;
+  emailVerified?: boolean;
   userName: string;
   phoneNumber: string;
   thinqUserKey: string;
@@ -32,6 +34,24 @@ function resolveApiBaseUrl() {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
+async function readErrorMessage(response: Response) {
+  const body = await response.text().catch(() => "");
+  if (!body) {
+    return `API request failed: ${response.status}`;
+  }
+
+  try {
+    const parsed = JSON.parse(body) as {
+      detail?: string;
+      message?: string;
+      error?: string;
+    };
+    return parsed.detail ?? parsed.message ?? parsed.error ?? body;
+  } catch {
+    return body;
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -42,8 +62,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(body || `API request failed: ${response.status}`);
+    throw new Error(await readErrorMessage(response));
   }
 
   return response.json() as Promise<T>;
@@ -107,6 +126,19 @@ export function signup(payload: {
   phoneNumber: string;
 }) {
   return request<DemoUser>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function firebaseLogin(payload: {
+  firebaseUid: string;
+  email: string;
+  emailVerified: boolean;
+  userName: string;
+  phoneNumber?: string;
+}) {
+  return request<DemoUser>("/api/auth/firebase-login", {
     method: "POST",
     body: JSON.stringify(payload),
   });
