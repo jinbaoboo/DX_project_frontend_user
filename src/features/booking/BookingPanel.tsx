@@ -206,7 +206,7 @@ function todayString() {
 
 function formatDateLabel(value: string) {
   if (!value) {
-    return "날짜를 선택해 주세요";
+    return "날짜를 선택해 주세요.";
   }
 
   const date = new Date(`${value}T00:00:00`);
@@ -287,7 +287,12 @@ export function BookingPanel({ swapRequest, loading, bookingPurpose = "pickup", 
         {copy.title}
       </div>
       <p className="mt-1 text-xs leading-5 text-slate-500">
+<<<<<<< HEAD
+        시간 예약은 예약한 날짜와 시간에 맞춰 CS 엔지니어가 방문하도록 접수하고, 바로콜은 현재 위치 또는 직접 입력한 주소로
+        즉시 수거 예약을 진행합니다.
+=======
         {copy.description}
+>>>>>>> origin/main
       </p>
       {copy.notice ? (
         <p className="mt-3 rounded-2xl bg-lgred/5 px-4 py-3 text-xs font-bold leading-5 text-lgred">
@@ -433,7 +438,7 @@ function ScheduleBooking({
     <div>
       <div className="overflow-hidden rounded-3xl bg-slate-50">
         <PickupPreviewMap
-          addressLabel={pickupAddress || "수거 위치를 확인해 주세요"}
+          addressLabel={pickupAddress || "수거 위치를 확인해 주세요."}
           coordinates={pickupCoords}
           onLocate={() => void handleUseCurrentLocation()}
           locating={pinLocating}
@@ -441,6 +446,62 @@ function ScheduleBooking({
         />
       </div>
 
+<<<<<<< HEAD
+      <p className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-xs font-bold leading-5 text-slate-500">
+        예약 시간에 맞춰 방문할 수 있도록 수거 위치와 예약 일정을 함께 확인합니다.
+      </p>
+
+      <div className="mt-4 rounded-3xl bg-slate-50 p-4">
+        <p className="text-sm font-black text-ink">예약 날짜 선택</p>
+        <div className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <label className="block text-xs font-black text-slate-400" htmlFor="pickup-date">
+            달력에서 날짜 선택
+          </label>
+          <input
+            id="pickup-date"
+            className="mt-2 h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-black text-ink outline-none focus:border-lgred"
+            min={todayString()}
+            type="date"
+            value={selectedDate}
+            onChange={(event) => setSelectedDate(event.target.value)}
+          />
+          <p className="mt-3 text-sm font-black text-ink">{formatDateLabel(selectedDate)}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-3xl bg-slate-50 p-4">
+        <p className="text-sm font-black text-ink">예약 시간 선택</p>
+        <p className="mt-1 text-xs font-semibold text-slate-400">
+          09:00부터 18:00까지, 30분 단위로 예약 가능한 시간만 표시됩니다.
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {timeSlots.map((time) => {
+            const active = time === selectedTime;
+            const disabled = reservedTimeSlots.has(time);
+
+            return (
+              <button
+                key={time}
+                className={`h-11 rounded-xl border text-sm font-black transition ${
+                  disabled
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-300"
+                    : active
+                      ? "border-lgred bg-lgred text-white"
+                      : "border-slate-200 bg-white text-ink"
+                }`}
+                disabled={disabled}
+                onClick={() => setSelectedTime(time)}
+                type="button"
+              >
+                {time}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+=======
+>>>>>>> origin/main
       <ManualAddressEditor
         address={pickupAddress}
         copy={copy}
@@ -467,7 +528,11 @@ function ScheduleBooking({
         }
         type="button"
       >
+<<<<<<< HEAD
+        {loading ? "예약 접수 중..." : "시간 예약하기"}
+=======
         {loading ? copy.scheduleLoadingLabel : copy.scheduleSubmitLabel}
+>>>>>>> origin/main
       </button>
     </div>
   );
@@ -497,8 +562,13 @@ function InstantCallBooking({
   const mapLabel = locating
     ? "현재 위치 확인 중..."
     : pickupMethod === "gps"
+<<<<<<< HEAD
+      ? pickupAddress || "현재 위치를 확인해 주세요."
+      : detailAddress || pickupAddress || "수거 위치를 검색해 주세요.";
+=======
       ? pickupAddress || copy.currentAddressFallback
       : detailAddress || pickupAddress || copy.addressMapFallback;
+>>>>>>> origin/main
 
   const refreshCurrentLocation = async () => {
     if (!isSecureGpsAvailable()) {
@@ -643,7 +713,11 @@ function InstantCallBooking({
       </div>
 
       <p className="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-xs font-bold leading-5 text-slate-500">
+<<<<<<< HEAD
+        현재 선택한 수거 위치를 지도에서 바로 확인할 수 있습니다.
+=======
         {copy.mapDescription}
+>>>>>>> origin/main
       </p>
 
       <div className="mt-4 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
@@ -658,9 +732,15 @@ function InstantCallBooking({
               <Crosshair size={18} />
             </span>
             <div>
+<<<<<<< HEAD
+              <p className="text-xs font-black text-slate-400">내 위치 확인</p>
+              <p className="mt-1 text-lg font-black text-ink">{pickupAddress || "현재 위치를 확인해 주세요."}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">필요하면 상세 위치를 추가해 주세요.</p>
+=======
               <p className="text-xs font-semibold text-slate-500">{copy.currentLocationEyebrow}</p>
               <p className="mt-1 text-[15px] font-bold leading-5 text-ink">{pickupAddress || copy.currentAddressFallback}</p>
               <p className="mt-1 text-xs font-semibold text-slate-500">{copy.detailHint}</p>
+>>>>>>> origin/main
             </div>
           </div>
           <input
@@ -700,7 +780,11 @@ function InstantCallBooking({
         onClick={() => void startMatching()}
         type="button"
       >
+<<<<<<< HEAD
+        {matching ? "바로콜 예약 접수 중..." : loading ? "바로콜 접수 중..." : "바로콜 예약하기"}
+=======
         {matching ? copy.matchingLabel : loading ? copy.callLoadingLabel : copy.callSubmitLabel}
+>>>>>>> origin/main
       </button>
     </div>
   );
@@ -748,6 +832,17 @@ function PickupPreviewMap({
       <div className="pointer-events-none absolute left-4 top-4 rounded-full bg-white/95 px-4 py-2 text-sm font-bold text-ink shadow">
         {addressLabel}
       </div>
+<<<<<<< HEAD
+      <div className="pointer-events-none absolute left-4 right-4 top-16 rounded-2xl bg-white/90 px-4 py-3 text-center text-xs font-black text-slate-700 shadow">
+        GPS가 어긋나면 지도에서 실제 수거 위치를 눌러 보정하세요.
+      </div>
+      <div className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-[#1f6fff] px-3 py-2 text-xs font-black text-white shadow-lg">
+        <span className="flex items-center gap-1">
+          <MapPin size={14} />
+          {pinLabel === "M" ? "현재 위치" : "수거 위치"}
+        </span>
+      </div>
+=======
       {adjustHint ? (
         <div className="pointer-events-none absolute left-4 right-4 top-16 rounded-2xl bg-white/90 px-4 py-3 text-center text-xs font-semibold text-slate-700 shadow">
           {adjustHint}
@@ -762,6 +857,7 @@ function PickupPreviewMap({
       >
         {locating ? <Loader2 className="animate-spin" size={20} /> : <MapPin size={22} />}
       </button>
+>>>>>>> origin/main
     </div>
   );
 }
@@ -932,8 +1028,13 @@ function ManualAddressEditor({
         }}
       />
       <input
+<<<<<<< HEAD
+        className="mt-3 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-ink outline-none focus:border-lgred"
+        placeholder="상세 위치를 입력해 주세요."
+=======
         className="mt-3 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-ink outline-none focus:border-lgred"
         placeholder={copy.manualDetailPlaceholder}
+>>>>>>> origin/main
         value={detailAddress}
         onChange={(event) => onDetailAddressChange(event.target.value)}
       />
