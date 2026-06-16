@@ -388,6 +388,13 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    if (window.location.hostname === "127.0.0.1") {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.hostname = "localhost";
+      window.location.replace(nextUrl.toString());
+      return;
+    }
+
     const splashTimer = window.setTimeout(() => setShowSplash(false), 1800);
 
     // dev 전용: ?demo=1 링크로 접속하면 로그인 화면을 건너뛰고 데모 유저로 진입해요.
@@ -583,7 +590,7 @@ export default function HomePage() {
 
   const openPurchaseSelectionScreen = () => {
     setSelectedPurchaseProductId((current) => current ?? getDefaultProductIdForCategory(selectedAppliance));
-    setSwapStep("market");
+    openBookingScreen("pickup");
   };
 
   const openOngoingReservation = () => {

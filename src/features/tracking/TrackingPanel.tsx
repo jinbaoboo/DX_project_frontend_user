@@ -3,7 +3,7 @@
 import { getTracking } from "@/lib/api";
 import type { SwapRequest } from "@/types/swap";
 import { Service3DIcon } from "@/components/Service3DIcon";
-import { Phone, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -71,14 +71,6 @@ const progressSteps = [
   { key: "ARRIVED", label: "문앞 도착" },
   { key: "HUB_DONE", label: "e-waste 공장 전달 완료" },
 ] as const;
-
-function formatPhoneTime(date = new Date()) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "-";
@@ -232,18 +224,10 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
 export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
   const [liveRequest, setLiveRequest] = useState<SwapRequest | null>(swapRequest);
   const [error, setError] = useState<string | null>(null);
-  const [now, setNow] = useState(() => formatPhoneTime());
 
   useEffect(() => {
     setLiveRequest(swapRequest);
   }, [swapRequest]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(formatPhoneTime());
-    }, 30000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (!swapRequest?.id || swapRequest.id < 0) {
@@ -299,18 +283,16 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
   return (
     <section className="overflow-hidden rounded-[28px] bg-white shadow-sm">
       <div className="bg-[linear-gradient(135deg,#fff5f8,#ffffff_55%,#f8fafc)] p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <span className="inline-flex rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
               이동 중인 크루 확인
             </span>
             <h2 className="mt-4 text-[20px] font-bold leading-6 text-ink">{viewModel.title}</h2>
             <p className="mt-2 text-[13px] font-medium leading-5 text-slate-500">{viewModel.subtitle}</p>
           </div>
-          <div className="rounded-2xl bg-[#202632] px-4 py-3 text-right text-white">
-            <p className="text-xs font-semibold text-white/60">현재 시간</p>
-            <p className="mt-1 text-[15px] font-bold leading-5">{now}</p>
-            <p className="mt-1 text-xs font-medium text-white/70">{viewModel.etaLabel}</p>
+          <div className="shrink-0 rounded-2xl bg-lgred/10 px-4 py-3 text-right ring-1 ring-lgred/15">
+            <p className="whitespace-nowrap text-[13px] font-bold leading-5 text-lgred">{viewModel.etaLabel}</p>
           </div>
         </div>
       </div>
@@ -337,15 +319,9 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
                 </div>
               </div>
             </div>
-            {viewModel.crewProfile ? (
-              <a
-                className="flex h-11 items-center gap-2 rounded-2xl bg-slate-100 px-4 text-[13px] font-bold text-slate-700"
-                href={`tel:${viewModel.crewProfile.phone}`}
-              >
-                <Phone size={16} />
-                연락
-              </a>
-            ) : null}
+            <div className="flex h-11 items-center rounded-2xl bg-lgred/10 px-4 text-[13px] font-bold text-lgred ring-1 ring-lgred/15">
+              {viewModel.etaLabel}
+            </div>
           </div>
 
           {viewModel.crewProfile?.reviewSummary?.length ? (

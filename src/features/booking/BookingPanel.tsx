@@ -5,7 +5,7 @@ import type { BookingAvailabilitySlot } from "@/lib/api";
 import type { SwapRequest } from "@/types/swap";
 import { Calendar3DIcon } from "@/components/Calendar3DIcon";
 import { Service3DIcon } from "@/components/Service3DIcon";
-import { Loader2, X } from "lucide-react";
+import { Loader2, MapPin, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -410,6 +410,19 @@ function ScheduleBooking({
     }
   };
 
+  const selectScheduleMapLocation = async (nextCoords: PickupCoordinates) => {
+    setPickupCoords(nextCoords);
+
+    let nextAddress = `선택 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`;
+    try {
+      nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
+    } catch {
+      // 지도 중앙 위치만으로도 예약 좌표는 충분히 저장할 수 있어요.
+    }
+
+    setPickupAddress(nextAddress);
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -456,9 +469,9 @@ function ScheduleBooking({
         <PickupPreviewMap
           addressLabel={pickupAddress || "수거 위치를 확인해 주세요."}
           coordinates={pickupCoords}
+          onCoordinateSelect={(coordinates) => void selectScheduleMapLocation(coordinates)}
           onLocate={() => void handleUseCurrentLocation()}
           locating={pinLocating}
-          pinLabel="home"
         />
       </div>
 
@@ -940,7 +953,6 @@ function InstantCallBooking({
           onCoordinateSelect={(coordinates) => void selectMapLocation(coordinates)}
           onLocate={() => void refreshCurrentLocation()}
           locating={locating}
-          pinLabel="home"
         />
       </div>
 
@@ -1013,7 +1025,6 @@ function PickupPreviewMap({
   onCoordinateSelect,
   onLocate,
   locating = false,
-  pinLabel,
 }: {
   adjustHint?: string;
   addressLabel: string;
@@ -1021,7 +1032,6 @@ function PickupPreviewMap({
   onCoordinateSelect?: (coordinates: PickupCoordinates) => void;
   onLocate?: () => void;
   locating?: boolean;
-  pinLabel: string;
 }) {
   if (!coordinates) {
     return <PickupMapFallback addressLabel={addressLabel} />;
@@ -1033,18 +1043,19 @@ function PickupPreviewMap({
         center={coordinates}
         className="h-full w-full"
         maxZoom={20}
-        markers={[
-          {
-            key: "pickup-preview",
-            label: pinLabel,
-            position: coordinates,
-            variant: "pickup",
-          },
-        ]}
+        markers={[]}
+        onCenterChangeEnd={onCoordinateSelect}
         onMapClick={onCoordinateSelect}
         path={[]}
+        syncCenter
         zoom={19}
       />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-[calc(100%-6px)] flex-col items-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-lgred text-white shadow-[0_10px_24px_rgba(193,0,63,0.28)] ring-4 ring-white/90">
+          <MapPin size={27} />
+        </div>
+        <span className="mt-1 h-2.5 w-2.5 rounded-full bg-lgred/35" />
+      </div>
       {adjustHint ? (
         <div className="pointer-events-none absolute left-4 right-4 top-4 rounded-2xl bg-white/90 px-4 py-3 text-center text-xs font-semibold text-slate-700 shadow">
           {adjustHint}
@@ -1057,7 +1068,7 @@ function PickupPreviewMap({
         disabled={!onLocate || locating}
         onClick={onLocate}
       >
-        {locating ? <Loader2 className="animate-spin" size={20} /> : <Service3DIcon type="location" className="h-9 w-9" />}
+        {locating ? <Loader2 className="animate-spin" size={20} /> : <MapPin size={22} />}
       </button>
     </div>
   );

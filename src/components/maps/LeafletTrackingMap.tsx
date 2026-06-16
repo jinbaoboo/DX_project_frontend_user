@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type Coordinates = {
   lat: number;
@@ -21,7 +21,9 @@ type LeafletTrackingMapProps = {
   className?: string;
   maxZoom?: number;
   minZoom?: number;
+  onCenterChangeEnd?: (coordinates: Coordinates) => void;
   onMapClick?: (coordinates: Coordinates) => void;
+  syncCenter?: boolean;
   zoom?: number;
 };
 
@@ -31,6 +33,8 @@ declare global {
   interface Window {
     google?: GoogleMapsApi;
     __swapitGoogleMapsPromise?: Promise<GoogleMapsApi>;
+    __swapitGoogleMapsLoaded?: () => void;
+    gm_authFailure?: () => void;
   }
 }
 
@@ -51,28 +55,61 @@ function loadGoogleMaps(): Promise<GoogleMapsApi> {
 
   if (!window.__swapitGoogleMapsPromise) {
     window.__swapitGoogleMapsPromise = new Promise((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>("script[data-swapit-google-maps]");
+      const waitForExistingScript = () => {
+        const startedAt = Date.now();
+        const intervalId = window.setInterval(() => {
+          if (window.google?.maps) {
+            window.clearInterval(intervalId);
+            resolve(window.google);
+            return;
+          }
+
+          if (Date.now() - startedAt > 8000) {
+            window.clearInterval(intervalId);
+            reject(new Error("Google Maps script timed out"));
+          }
+        }, 100);
+      };
+
+      const existingScript = document.querySelector<HTMLScriptElement>("script[src*='maps.googleapis.com/maps/api/js']");
       if (existingScript) {
-        existingScript.addEventListener("load", () => resolve(window.google));
-        existingScript.addEventListener("error", () => reject(new Error("Google Maps script failed to load")));
+        waitForExistingScript();
         return;
       }
+
+      window.__swapitGoogleMapsLoaded = () => {
+        if (window.google?.maps) {
+          resolve(window.google);
+        } else {
+          reject(new Error("Google Maps script loaded without maps API"));
+        }
+      };
+
+      window.gm_authFailure = () => {
+        window.dispatchEvent(new Event("swapit-google-maps-auth-failure"));
+        reject(new Error("Google Maps authentication failed"));
+      };
 
       const script = document.createElement("script");
       const params = new URLSearchParams({
         key: googleMapsApiKey,
         language: "ko",
         region: "IN",
+        loading: "async",
         v: "weekly",
+        callback: "__swapitGoogleMapsLoaded",
       });
 
       script.async = true;
+      script.id = "swapit-google-maps-leaflet";
       script.dataset.swapitGoogleMaps = "true";
       script.defer = true;
       script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-      script.onload = () => resolve(window.google);
       script.onerror = () => reject(new Error("Google Maps script failed to load"));
       document.head.appendChild(script);
+    }).catch((error) => {
+      window.__swapitGoogleMapsPromise = undefined;
+      throw error;
     });
   }
 
@@ -140,7 +177,9 @@ export function LeafletTrackingMap({
   className,
   maxZoom = 22,
   minZoom = 3,
+  onCenterChangeEnd,
   onMapClick,
+  syncCenter = false,
   zoom = 17,
 }: LeafletTrackingMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -152,16 +191,47 @@ export function LeafletTrackingMap({
   const initializedRef = useRef(false);
   const userInteractedRef = useRef(false);
   const autoAdjustingRef = useRef(false);
+  const shouldReportCenterRef = useRef(false);
+  const onCenterChangeEndRef = useRef(onCenterChangeEnd);
   const [loadError, setLoadError] = useState("");
+  const [mapReady, setMapReady] = useState(false);
   const normalizedPath = useMemo(() => path.filter(Boolean), [path]);
 
   useEffect(() => {
+    onCenterChangeEndRef.current = onCenterChangeEnd;
+  }, [onCenterChangeEnd]);
+
+  useEffect(() => {
+    const handleAuthFailure = () => {
+      setLoadError("Google Maps authentication failed");
+    };
+
+    window.addEventListener("swapit-google-maps-auth-failure", handleAuthFailure);
+    return () => {
+      window.removeEventListener("swapit-google-maps-auth-failure", handleAuthFailure);
+    };
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
+    let tilesLoaded = false;
+    const timeoutId = window.setTimeout(() => {
+      if (mounted && !tilesLoaded) {
+        setLoadError("Google Maps tile loading timed out");
+      }
+    }, 9000);
 
     loadGoogleMaps()
       .then((googleApi) => {
         const container = containerRef.current;
-        if (!mounted || !container || mapRef.current) {
+        if (!mounted || !container) {
+          return;
+        }
+
+        if (mapRef.current) {
+          tilesLoaded = true;
+          window.clearTimeout(timeoutId);
+          setMapReady(true);
           return;
         }
 
@@ -190,14 +260,37 @@ export function LeafletTrackingMap({
           });
 
           mapRef.current = map;
+          const tilesLoadedListener = googleApi.maps.event.addListenerOnce(map, "tilesloaded", () => {
+            tilesLoaded = true;
+            window.clearTimeout(timeoutId);
+            if (mounted) {
+              setMapReady(true);
+            }
+          });
           mapInteractionListenersRef.current = [
+            tilesLoadedListener,
             map.addListener("dragstart", () => {
               userInteractedRef.current = true;
+              shouldReportCenterRef.current = true;
             }),
             map.addListener("zoom_changed", () => {
               if (!autoAdjustingRef.current && initializedRef.current) {
                 userInteractedRef.current = true;
+                shouldReportCenterRef.current = true;
               }
+            }),
+            map.addListener("idle", () => {
+              const callback = onCenterChangeEndRef.current;
+              const mapCenter = map.getCenter();
+              if (!callback || !mapCenter || autoAdjustingRef.current || !shouldReportCenterRef.current) {
+                return;
+              }
+
+              shouldReportCenterRef.current = false;
+              callback({
+                lat: mapCenter.lat(),
+                lng: mapCenter.lng(),
+              });
             }),
           ];
         });
@@ -208,16 +301,37 @@ export function LeafletTrackingMap({
       })
       .catch((error: Error) => {
         if (mounted) {
+          window.clearTimeout(timeoutId);
           setLoadError(error.message);
         }
       });
 
     return () => {
       mounted = false;
+      window.clearTimeout(timeoutId);
       mapInteractionListenersRef.current.forEach((listener) => listener.remove());
       mapInteractionListenersRef.current = [];
     };
-  }, [center, maxZoom, minZoom, zoom]);
+  }, [maxZoom, minZoom, zoom]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!syncCenter || !map || !window.google?.maps) return;
+
+    const mapCenter = map.getCenter();
+    const centerChanged =
+      !mapCenter ||
+      Math.abs(mapCenter.lat() - center.lat) > 0.000001 ||
+      Math.abs(mapCenter.lng() - center.lng) > 0.000001;
+
+    if (!centerChanged) return;
+
+    autoAdjustingRef.current = true;
+    map.setCenter(center);
+    window.setTimeout(() => {
+      autoAdjustingRef.current = false;
+    }, 0);
+  }, [center, syncCenter]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -328,8 +442,8 @@ export function LeafletTrackingMap({
     const missingKey = loadError.includes("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY");
 
     return (
-      <div className={`${className ?? ""} flex items-center justify-center bg-slate-100 p-5 text-center`}>
-        <div>
+      <StaticMapFallback className={className} markers={markers}>
+        <div className="rounded-2xl bg-white/90 px-4 py-3 text-center shadow-sm">
           <p className="text-sm font-bold text-ink">Google Maps 연결이 필요합니다</p>
           <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
             {missingKey
@@ -337,9 +451,49 @@ export function LeafletTrackingMap({
               : "Google Cloud에서 Maps JavaScript API, 결제, 도메인 제한 설정을 확인해주세요."}
           </p>
         </div>
-      </div>
+      </StaticMapFallback>
     );
   }
 
-  return <div ref={containerRef} className={className} />;
+  return (
+    <div className={`${className ?? ""} relative overflow-hidden bg-[radial-gradient(circle_at_72%_24%,rgba(255,184,0,.18),transparent_18%),linear-gradient(180deg,#f5f6f8,#e8edf3)]`}>
+      <div ref={containerRef} className="absolute inset-0" />
+      {!mapReady ? (
+        <div className="pointer-events-none absolute inset-x-4 bottom-4 rounded-2xl bg-white/90 px-4 py-3 text-center text-xs font-bold text-slate-600 shadow-sm">
+          지도를 불러오고 있어요
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StaticMapFallback({
+  children,
+  className,
+  markers,
+}: {
+  children?: ReactNode;
+  className?: string;
+  markers: MarkerConfig[];
+}) {
+  const primaryMarker = markers[0];
+
+  return (
+    <div className={`${className ?? ""} relative overflow-hidden bg-[radial-gradient(circle_at_72%_24%,rgba(255,184,0,.22),transparent_18%),linear-gradient(180deg,#f5f6f8,#e8edf3)]`}>
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(148,163,184,.18)_1px,transparent_1px),linear-gradient(0deg,rgba(148,163,184,.18)_1px,transparent_1px)] bg-[length:28px_28px]" />
+      {primaryMarker ? (
+        <div
+          className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-white text-xs font-black text-white shadow-xl"
+          style={{ backgroundColor: markerColor(primaryMarker.variant) }}
+        >
+          {(primaryMarker.label ?? "P").slice(0, 1).toUpperCase()}
+        </div>
+      ) : null}
+      {children ? (
+        <div className="absolute inset-x-4 top-4 z-10 flex justify-center">
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
 }
