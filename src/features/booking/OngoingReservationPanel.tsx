@@ -42,28 +42,28 @@ export function OngoingReservationPanel({
 
   const trackingDescription = pickupCompleted
     ? isInstallation
-      ? "설치와 기존 제품 수거가 완료되면 안심처리 상태를 확인할 수 있어요."
+      ? "기존 제품 수거가 완료되면 안심처리 상태를 확인할 수 있어요."
       : "수거와 e-waste 공장 전달까지 완료되어 안심처리 상태를 확인할 수 있어요."
     : status === "reserved"
       ? isInstallation
-        ? "예약된 설치 일정 기준으로 크루 배정, 이동, 기존 제품 수거 상태를 확인할 수 있어요."
+        ? "예약된 수거 일정 기준으로 크루 배정, 이동, 기존 제품 수거 상태를 확인할 수 있어요."
         : "예약된 수거 일정 기준으로 크루 배정 및 이동 상태를 확인할 수 있어요."
       : isInstallation
-        ? "배정된 설치 크루의 이동 상태와 설치 및 수거 진행 상황을 확인할 수 있어요."
+        ? "배정된 수거 크루의 이동 상태와 수거 진행 상황을 확인할 수 있어요."
         : "배정된 수거 크루의 이동 상태와 수거 진행 상황을 확인할 수 있어요.";
 
   return (
     <section className="flex h-full flex-col rounded-[28px] bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 text-[13px] font-bold text-lgred">
         <Calendar3DIcon className="h-6 w-6 shrink-0" />
-        {isInstallation ? "진행 중인 설치 예약이에요" : "진행 중인 예약이에요"}
+        {isInstallation ? "진행 중인 수거 예약이에요" : "진행 중인 예약이에요"}
       </div>
 
       <div className="mt-4 rounded-3xl border border-lgred/15 bg-lgred/5 p-4">
-        <p className="text-xs font-bold text-lgred">{isInstallation ? "설치 예약이 접수됐어요" : "예약이 접수됐어요"}</p>
+        <p className="text-xs font-bold text-lgred">{isInstallation ? "수거 예약이 접수됐어요" : "예약이 접수됐어요"}</p>
         <p className="mt-1 text-[13px] font-medium leading-5 text-slate-600">
           {isInstallation
-            ? "예약 시간과 위치를 확인하고 설치와 기존 제품 수거 진행 상태로 이동할 수 있어요."
+            ? "예약 시간과 위치를 확인하고 기존 제품 수거 진행 상태로 이동할 수 있어요."
             : "예약 시간과 위치를 확인하고 수거 진행 상태로 이동할 수 있어요."}
         </p>
       </div>
@@ -72,9 +72,9 @@ export function OngoingReservationPanel({
         <InfoRow icon={<Service3DIcon type="clock" className="h-9 w-9" />} title="예약 시간이에요" description={reservationLabel || "예약 정보가 없어요"} />
         <InfoRow
           icon={<Service3DIcon type="location" className="h-9 w-9" />}
-          title={isInstallation ? "설치 위치예요" : "수거 위치예요"}
+          title={isInstallation ? "수거 위치예요" : "수거 위치예요"}
           description={
-            reservationAddress || (isInstallation ? "입력한 설치 주소를 불러오고 있어요." : "입력한 수거 주소를 불러오고 있어요.")
+            reservationAddress || (isInstallation ? "입력한 수거 주소를 불러오고 있어요." : "입력한 수거 주소를 불러오고 있어요.")
           }
         />
       </div>
@@ -83,17 +83,17 @@ export function OngoingReservationPanel({
         <StageCard
           icon={<Service3DIcon type="truck" className="h-10 w-10" />}
           stepLabel="STEP 4"
-          title={pickupCompleted ? (isInstallation ? "설치와 수거가 완료됐어요" : "수거 및 처리가 완료됐어요") : "크루 이동을 확인해요"}
+          title={pickupCompleted ? (isInstallation ? "수거가 완료됐어요" : "수거 및 처리가 완료됐어요") : "크루 이동을 확인해요"}
           description={trackingDescription}
           buttonLabel={
             pickupCompleted
               ? isInstallation
-                ? "설치와 수거가 완료됐어요"
+                ? "수거가 완료됐어요"
                 : "수거 및 처리가 완료됐어요"
               : status === "pickup"
                 ? "이동 중인 크루를 확인할게요"
                 : isInstallation
-                  ? "설치와 수거 진행을 확인할게요"
+                  ? "수거 진행을 확인할게요"
                   : "수거 진행을 확인할게요"
           }
           onClick={onOpenTracking}

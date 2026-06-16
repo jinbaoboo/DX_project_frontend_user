@@ -89,18 +89,39 @@ function markerScale(variant: MarkerConfig["variant"]) {
   return variant === "pickup" ? 11 : 12;
 }
 
-function createMarkerIcon(googleApi: GoogleMapsApi, variant: MarkerConfig["variant"]) {
+function createHomeMarkerIcon(googleApi: GoogleMapsApi) {
+  const svg = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42">
+      <circle cx="21" cy="21" r="18" fill="#2563eb" stroke="#ffffff" stroke-width="4"/>
+      <path d="M12 21.5 21 14l9 7.5v8.5a1.5 1.5 0 0 1-1.5 1.5h-5v-6.5h-5V31h-5A1.5 1.5 0 0 1 12 29.5v-8Z" fill="#ffffff"/>
+    </svg>
+  `);
+
   return {
-    fillColor: markerColor(variant),
+    url: `data:image/svg+xml;charset=UTF-8,${svg}`,
+    scaledSize: new googleApi.maps.Size(42, 42),
+    anchor: new googleApi.maps.Point(21, 21),
+  };
+}
+
+function createMarkerIcon(googleApi: GoogleMapsApi, marker: MarkerConfig) {
+  if (marker.label === "home") {
+    return createHomeMarkerIcon(googleApi);
+  }
+
+  return {
+    fillColor: markerColor(marker.variant),
     fillOpacity: 1,
     path: googleApi.maps.SymbolPath.CIRCLE,
-    scale: markerScale(variant),
+    scale: markerScale(marker.variant),
     strokeColor: "#ffffff",
     strokeWeight: 3,
   };
 }
 
 function createMarkerLabel(label?: string) {
+  if (label === "home") return undefined;
+
   const safeLabel = (label ?? "").slice(0, 1).toUpperCase();
   if (!safeLabel) return undefined;
 
@@ -211,7 +232,7 @@ export function LeafletTrackingMap({
 
       if (existingMarker) {
         existingMarker.setPosition(marker.position);
-        existingMarker.setIcon(createMarkerIcon(googleApi, marker.variant));
+        existingMarker.setIcon(createMarkerIcon(googleApi, marker));
         existingMarker.setLabel(createMarkerLabel(marker.label));
         existingMarker.setTitle(marker.label ?? "");
         existingMarker.setMap(map);
@@ -221,7 +242,7 @@ export function LeafletTrackingMap({
       markerRefs.current.set(
         marker.key,
         new googleApi.maps.Marker({
-          icon: createMarkerIcon(googleApi, marker.variant),
+          icon: createMarkerIcon(googleApi, marker),
           label: createMarkerLabel(marker.label),
           map,
           position: marker.position,

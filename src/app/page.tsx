@@ -2066,21 +2066,21 @@ function OngoingReservationHeader({
   const title =
     step === "ongoing"
       ? isInstallation
-        ? "진행 중인 설치 예약"
+        ? "진행 중인 수거 예약"
         : "진행 중인 예약"
       : step === "tracking"
         ? isInstallation
-          ? "진행 중인 예약 · 설치와 수거"
+          ? "진행 중인 예약 · 수거 진행"
           : "진행 중인 예약 · 수거 진행"
         : "진행 중인 예약 · 보상 단계";
   const description =
     step === "ongoing"
       ? isInstallation
-        ? "설치 예약 정보와 크루 이동 상태를 이어서 확인할 수 있어요."
+        ? "수거 예약 정보와 크루 이동 상태를 이어서 확인할 수 있어요."
         : "예약 정보와 크루 이동 상태를 이어서 확인할 수 있어요."
       : step === "tracking"
         ? isInstallation
-          ? "크루 이동, 새 제품 설치, 기존 제품 수거 진행을 한 화면에서 확인해요."
+          ? "크루 이동, 기존 제품 수거 진행을 한 화면에서 확인해요."
           : "크루 이동, 수거 진행, GPS 추적을 한 화면에서 확인해요."
         : "수거 완료 이후 검수, 최종 보상가, 크레딧 발급 단계를 이어서 확인해요.";
 

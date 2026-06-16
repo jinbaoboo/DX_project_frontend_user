@@ -20,10 +20,10 @@ export function ReservationCompletePanel({
   const copy =
     bookingPurpose === "installation"
       ? {
-          confirmedLabel: "설치 예약이 확정됐어요",
-          description: "예약된 시간에 새 제품 설치와 기존 제품 수거를 함께 진행해요.",
-          locationTitle: "설치 위치예요",
-          locationFallback: "입력한 설치 주소를 불러오고 있어요.",
+          confirmedLabel: "수거 예약이 확정됐어요",
+          description: "예약된 시간에 기존 제품 수거가 진행돼요.",
+          locationTitle: "수거 위치예요",
+          locationFallback: "입력한 수거 주소를 불러오고 있어요.",
         }
       : {
           confirmedLabel: "수거 예약이 확정됐어요",
