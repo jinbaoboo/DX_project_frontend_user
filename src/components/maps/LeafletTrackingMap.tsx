@@ -23,6 +23,9 @@ type LeafletTrackingMapProps = {
   minZoom?: number;
   onCenterChangeEnd?: (coordinates: Coordinates) => void;
   onMapClick?: (coordinates: Coordinates) => void;
+  routeColor?: string;
+  routeOpacity?: number;
+  routeWeight?: number;
   syncCenter?: boolean;
   zoom?: number;
 };
@@ -179,6 +182,9 @@ export function LeafletTrackingMap({
   minZoom = 3,
   onCenterChangeEnd,
   onMapClick,
+  routeColor = "#1f6fff",
+  routeOpacity = 0.9,
+  routeWeight = 5,
   syncCenter = false,
   zoom = 17,
 }: LeafletTrackingMapProps) {
@@ -380,9 +386,9 @@ export function LeafletTrackingMap({
           geodesic: false,
           map,
           path: normalizedPath,
-          strokeColor: "#1f6fff",
-          strokeOpacity: 0.9,
-          strokeWeight: 5,
+          strokeColor: routeColor,
+          strokeOpacity: routeOpacity,
+          strokeWeight: routeWeight,
         });
       }
     } else if (polylineRef.current) {
@@ -408,7 +414,7 @@ export function LeafletTrackingMap({
         autoAdjustingRef.current = false;
       }, 0);
     }
-  }, [center, markers, normalizedPath, zoom]);
+  }, [center, markers, normalizedPath, routeColor, routeOpacity, routeWeight, zoom]);
 
   useEffect(() => {
     const map = mapRef.current;

@@ -212,10 +212,10 @@ function createPreviewSwapRequest(): SwapRequest {
     booking: {
       bookingDate: "2026-06-15",
       bookingTime: "09:00",
-      address: "서울특별시 중구 세종대로 110",
-      detailAddress: "1층 공동현관 앞",
-      pickupLat: 37.5665,
-      pickupLng: 126.978,
+      address: "",
+      detailAddress: "",
+      pickupLat: null,
+      pickupLng: null,
     },
     pickupRequest: {
       pickupRequestId: -404,
@@ -223,7 +223,7 @@ function createPreviewSwapRequest(): SwapRequest {
       status: "IN_PROGRESS",
       crewId: 101,
       crewName: "민지 크루",
-      address: "서울특별시 중구 세종대로 110",
+      address: "",
       scheduledAt: "2026-06-15 09:00",
       requestedAt: now,
       nearbyCrews: [],
@@ -317,6 +317,23 @@ function createPreviewSwapRequest(): SwapRequest {
     },
     notifications: [],
   };
+}
+
+function previewModelNameFor(appliance: ApplianceId) {
+  switch (appliance) {
+    case "refrigerator":
+      return "GL-T422VPZX";
+    case "air_conditioner":
+      return "US-Q19BNZE3";
+    case "microwave":
+      return "MH8265DIS";
+    case "tv":
+      return "OLED55C4";
+    case "air_purifier":
+      return "AS181DAW";
+    default:
+      return "FHP1411Z9P";
+  }
 }
 
 export default function HomePage() {
@@ -479,26 +496,56 @@ export default function HomePage() {
 
   const bookingMutation = useMutation({
     mutationFn: async (booking: BookingSelection) => {
-      if (!swapRequest) throw new Error("Swap request is required");
-      const bookingSwapRequest =
-        swapRequest.status === "PRE_VALUATION_ACCEPTED"
-          ? swapRequest
-          : await acceptPreValuation(swapRequest.id);
+      let bookingSwapRequest = swapRequest;
+
+      if (!bookingSwapRequest || bookingSwapRequest.id < 0) {
+        const created = await createSwapRequestForUser(
+          demoUser
+            ? {
+                userId: demoUser.userId,
+                userName: demoUser.userName,
+                phoneNumber: demoUser.phoneNumber,
+              }
+            : {
+                userName: "Demo User",
+                phoneNumber: "+91-90000-00000",
+              },
+          selectedAppliance,
+        );
+        await analyzePhoto(created.id, {
+          exteriorPhotoFileName: "preview-washer-front.jpg",
+          labelPhotoFileName: "preview-washer-label.jpg",
+          agreedToCreditPolicy: true,
+          applianceType: selectedAppliance,
+          brand: "LG",
+          modelName: previewModelNameFor(selectedAppliance),
+          estimatedAge: "3년",
+          exteriorCondition: "생활 스크래치",
+        });
+        bookingSwapRequest = await acceptPreValuation(created.id);
+      } else if (bookingSwapRequest.status !== "PRE_VALUATION_ACCEPTED") {
+        bookingSwapRequest = await acceptPreValuation(bookingSwapRequest.id);
+      }
+
+      if (booking.pickupLat == null || booking.pickupLng == null) {
+        throw new Error("Pickup location coordinates are required");
+      }
+
       const data =
         booking.mode === "schedule"
           ? await confirmBooking(bookingSwapRequest.id, {
               address: booking.pickupAddress ?? "A-12, New Delhi demo street",
               detailAddress: booking.detailAddress ?? "Demo street",
-              pickupLat: booking.pickupLat ?? 28.6197,
-              pickupLng: booking.pickupLng ?? 77.2196,
+              pickupLat: booking.pickupLat,
+              pickupLng: booking.pickupLng,
               bookingDate: booking.bookingDate,
               bookingTime: booking.bookingTime,
             })
           : await requestInstantCall(bookingSwapRequest.id, {
               address: booking.pickupAddress ?? "A-12, New Delhi demo street",
               detailAddress: booking.detailAddress ?? "Near LG demo pickup point",
-              pickupLat: booking.pickupLat ?? 28.6197,
-              pickupLng: booking.pickupLng ?? 77.2196,
+              pickupLat: booking.pickupLat,
+              pickupLng: booking.pickupLng,
             });
       return { data, booking };
     },
@@ -562,7 +609,6 @@ export default function HomePage() {
   const error =
     createMutation.error ??
     acceptValuationMutation.error ??
-    bookingMutation.error ??
     creditMutation.error;
 
   const resetExchangeFlow = () => {
@@ -584,6 +630,7 @@ export default function HomePage() {
   };
 
   const openBookingScreen = (purpose: BookingPurpose = "pickup") => {
+    bookingMutation.reset();
     setBookingPurpose(purpose);
     setSwapStep("booking");
   };
@@ -618,6 +665,7 @@ export default function HomePage() {
     }
 
     if (nextStep === "booking") {
+      bookingMutation.reset();
       setBookingPurpose(swapStep === "market" ? "installation" : "pickup");
     }
 
@@ -626,7 +674,7 @@ export default function HomePage() {
       const reservationTime = previewRequest.booking?.bookingTime ?? "09:00";
       setActiveReservationRequest(previewRequest);
       setReservationLabel(`${reservationDate} ${reservationTime}`);
-      setReservationAddress(previewRequest.booking?.address ?? "서울특별시 중구 세종대로 110");
+      setReservationAddress(previewRequest.booking?.address ?? "");
     }
 
     if (nextStep === "tracking") {
@@ -726,8 +774,10 @@ export default function HomePage() {
                   analyzeLoading={analyzeMutation.isPending}
                   bookingLoading={bookingMutation.isPending}
                   bookingError={
-                    bookingMutation.error
-                      ? "예약을 완료하지 못했어요. 네트워크 상태를 확인하고 다시 시도하거나, 처음부터 다시 진행해 주세요."
+                    bookingMutation.error?.message.includes("Pickup location coordinates are required")
+                      ? "현재 위치를 먼저 확인해주세요. 지도에서 수거 위치가 잡힌 뒤 다시 진행할 수 있어요."
+                      : bookingMutation.error
+                        ? "예약을 완료하지 못했어요. 네트워크 상태를 확인하고 다시 시도하거나, 처음부터 다시 진행해 주세요."
                       : ""
                   }
                   creditLoading={creditMutation.isPending}

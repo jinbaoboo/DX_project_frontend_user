@@ -103,8 +103,7 @@ const GoogleCanvasMap = dynamic(
 
 const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim() ?? "";
 
-const defaultPickupCoords = { lat: 37.5665, lng: 126.978 };
-const defaultAddress = "서울특별시 중구 세종대로 110";
+const defaultAddress = "";
 
 const bookingCopies: Record<BookingPurpose, BookingCopy> = {
   pickup: {
@@ -149,46 +148,46 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     manualFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 주소를 직접 입력해 주세요.",
   },
   installation: {
-    title: "수거 예약을 진행해요",
+    title: "설치 예약을 진행해요",
     description:
-      "수거 일정을 선택하면 기존 제품 수거 요청이 같은 방문 흐름으로 진행돼요.",
-    notice: "수거 크루 방문 시 기존 제품 수거가 진행돼요.",
-    scheduleModeLabel: "수거 시간 예약",
-    callModeLabel: "빠른 수거 요청",
-    dateTitle: "수거 날짜를 선택해요",
-    datePickerLabel: "달력에서 수거 날짜를 선택해요",
-    timeTitle: "수거 시간을 선택해요",
-    timeDescription: "수거 가능 시간만 표시돼요. 선택한 시간에 기존 제품 수거가 진행돼요.",
+      "새 LG 제품 설치 일정을 선택하면 기존 제품 수거도 같은 방문 흐름으로 함께 진행해요.",
+    notice: "설치 기사 방문 시 새 제품 설치와 기존 제품 수거를 동시에 진행해요.",
+    scheduleModeLabel: "설치 시간 예약",
+    callModeLabel: "빠른 설치 요청",
+    dateTitle: "설치 날짜를 선택해요",
+    datePickerLabel: "달력에서 설치 날짜를 선택해요",
+    timeTitle: "설치 시간을 선택해요",
+    timeDescription: "설치 가능 시간만 표시돼요. 선택한 시간에 새 제품 설치와 기존 제품 수거가 함께 진행돼요.",
     unavailableTimeLabel: "예약 마감",
-    scheduleLoadingLabel: "수거 예약 접수 중...",
-    scheduleSubmitLabel: "수거 예약을 요청할게요",
-    addressMapFallback: "수거 위치를 검색해 주세요",
+    scheduleLoadingLabel: "설치 예약 접수 중...",
+    scheduleSubmitLabel: "설치 예약을 요청할게요",
+    addressMapFallback: "설치 위치를 검색해 주세요",
     locationPermissionError:
-      "현재 접속 환경에서는 GPS 사용이 제한되어 있어요. HTTPS 환경에서 위치 권한을 허용하거나 수거 위치를 직접 입력해 주세요.",
-    locationFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 수거 위치를 직접 입력해 주세요.",
-    manualRequiredError: "수거 위치를 직접 입력해 주세요.",
+      "현재 접속 환경에서는 GPS 사용이 제한되어 있어요. HTTPS 환경에서 위치 권한을 허용하거나 설치 위치를 직접 입력해 주세요.",
+    locationFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 설치 위치를 직접 입력해 주세요.",
+    manualRequiredError: "설치 위치를 직접 입력해 주세요.",
     addressNotFoundError: "입력한 주소를 찾지 못했어요. 주소를 다시 확인해 주세요.",
-    coordinateError: "수거 위치 좌표를 확인하지 못했어요. 다시 시도해 주세요.",
-    callReservedAt: "빠른 수거 요청 접수",
+    coordinateError: "설치 위치 좌표를 확인하지 못했어요. 다시 시도해 주세요.",
+    callReservedAt: "빠른 설치 요청 접수",
     currentDetailLabel: "현재 위치",
-    mapDescription: "지도에는 현재 선택된 수거 위치가 표시돼요. 이 위치에서 기존 제품 수거가 진행돼요.",
-    currentLocationEyebrow: "수거 위치 확인",
-    currentAddressFallback: "수거 위치를 확인해 주세요",
-    detailHint: "엘리베이터, 주차, 기존 제품 위치처럼 수거에 필요한 정보를 추가해 주세요.",
+    mapDescription: "지도에는 현재 선택된 설치 위치가 표시돼요. 이 위치에서 설치와 기존 제품 수거가 함께 진행돼요.",
+    currentLocationEyebrow: "설치 위치 확인",
+    currentAddressFallback: "설치 위치를 확인해 주세요",
+    detailHint: "엘리베이터, 주차, 기존 제품 위치처럼 설치와 수거에 필요한 정보를 추가해 주세요.",
     detailPlaceholder: "예: 엘리베이터 있음, 기존 세탁기 다용도실",
     refreshLocationLabel: "현재 위치를 다시 확인할게요",
-    matchingLabel: "근처 수거 크루 찾는 중...",
-    callLoadingLabel: "수거 요청 접수 중...",
-    callSubmitLabel: "근처 수거 크루를 찾을게요",
-    mapAdjustHint: "GPS가 어긋나면 지도에서 실제 수거 위치를 눌러 보정하세요.",
-    mapPinLabel: "수거 위치",
-    manualTitle: "수거 위치를 직접 입력해요",
-    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 수거 위치를 지정할 수 있어요.",
+    matchingLabel: "근처 설치 크루 찾는 중...",
+    callLoadingLabel: "빠른 설치 요청 접수 중...",
+    callSubmitLabel: "근처 설치 크루를 찾을게요",
+    mapAdjustHint: "GPS가 어긋나면 지도에서 실제 설치 위치를 눌러 보정하세요.",
+    mapPinLabel: "설치 위치",
+    manualTitle: "설치 위치를 직접 입력해요",
+    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 설치 위치를 지정할 수 있어요.",
     manualButtonLabel: "현재 위치로 지정할게요",
     manualAddressPlaceholder: "서울특별시 중구 세종대로 110",
     manualDetailPlaceholder: "상세 주소를 입력해주세요",
     manualSecureError: "현재 위치는 HTTPS 또는 localhost 환경에서만 사용할 수 있어요.",
-    manualFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 수거 주소를 직접 입력해 주세요.",
+    manualFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 설치 주소를 직접 입력해 주세요.",
   },
 };
 
@@ -282,7 +281,7 @@ export function BookingPanel({ swapRequest, loading, bookingPurpose = "pickup", 
   const [mode, setMode] = useState<BookingMode>("schedule");
   const canBook = Boolean(swapRequest && swapRequest.preValuation.maxEstimatedValue > 0);
   const copy = bookingCopies[bookingPurpose];
-  const allowInstantCall = bookingPurpose !== "installation";
+  const allowInstantCall = true;
 
   useEffect(() => {
     if (!allowInstantCall) {
@@ -317,7 +316,7 @@ export function BookingPanel({ swapRequest, loading, bookingPurpose = "pickup", 
           <ScheduleBooking
             canBook={canBook}
             copy={copy}
-            hideManualHeader={bookingPurpose === "installation"}
+            hideManualHeader={false}
             loading={loading}
             onBooking={onBooking}
           />
@@ -374,7 +373,7 @@ function ScheduleBooking({
   const [selectedTime, setSelectedTime] = useState("09:00");
   const [pickupAddress, setPickupAddress] = useState(defaultAddress);
   const [detailAddress, setDetailAddress] = useState("");
-  const [pickupCoords, setPickupCoords] = useState<PickupCoordinates>(defaultPickupCoords);
+  const [pickupCoords, setPickupCoords] = useState<PickupCoordinates | null>(null);
   const [availability, setAvailability] = useState<BookingAvailabilitySlot[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityError, setAvailabilityError] = useState("");
@@ -518,8 +517,10 @@ function ScheduleBooking({
 
       <button
         className="mt-4 h-12 w-full rounded-2xl bg-[#202632] text-[13px] font-bold text-white disabled:bg-slate-300"
-        disabled={!canBook || loading || !selectedDate || availabilityLoading || selectedTimeUnavailable}
-        onClick={() =>
+        disabled={!canBook || loading || !selectedDate || !pickupCoords || availabilityLoading || selectedTimeUnavailable}
+        onClick={() => {
+          if (!pickupCoords) return;
+
           onBooking({
             mode: "schedule",
             reservedAt: formatReservedAt(selectedDate, selectedTime),
@@ -529,8 +530,8 @@ function ScheduleBooking({
             pickupLng: pickupCoords.lng,
             bookingDate: selectedDate,
             bookingTime: selectedTime,
-          })
-        }
+          });
+        }}
         type="button"
       >
         {loading ? copy.scheduleLoadingLabel : copy.scheduleSubmitLabel}

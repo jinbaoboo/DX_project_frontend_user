@@ -452,23 +452,35 @@ function TrackingMap({
       : pickupLocation;
 
   const markers = [
-    { key: "pickup", label: "P", position: pickupLocation, variant: "pickup" as const },
+    { key: "pickup", label: "home", position: pickupLocation, variant: "pickup" as const },
     ...(crewLocation ? [{ key: "crew", label: "C", position: crewLocation, variant: "crew" as const }] : []),
     ...(processingCenter
       ? [{ key: "hub", label: "H", position: { lat: processingCenter.lat, lng: processingCenter.lng }, variant: "hub" as const }]
       : []),
   ];
 
-  const path = routePath.length > 1 ? routePath : crewLocation ? [crewLocation, routeTarget] : [];
+  const path = routePath.length > 1 ? routePath : [];
+  const hasRoadRoute = path.length > 1;
 
   return (
     <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100">
-      <LeafletTrackingMap
-        center={crewLocation ?? routeTarget}
-        className="h-[320px] w-full"
-        markers={markers}
-        path={path}
-      />
+      <div className="relative">
+        <LeafletTrackingMap
+          center={crewLocation ?? routeTarget}
+          className="h-[340px] w-full"
+          markers={markers}
+          path={path}
+          routeColor="#2563eb"
+          routeOpacity={0.74}
+          routeWeight={5}
+        />
+        <div className="pointer-events-none absolute left-3 right-3 top-3 rounded-[18px] bg-white/95 px-4 py-3 text-center shadow-[0_8px_24px_rgba(15,23,42,0.12)] backdrop-blur">
+          <p className="text-xs font-black text-lgred">크루 이동 경로</p>
+          <p className="mt-1 text-xs font-bold leading-5 text-slate-600">
+            {hasRoadRoute ? "도로 기반 경로로 크루 위치를 확인할 수 있어요." : "도로 경로를 계산 중이에요. 크루 위치가 갱신되면 표시됩니다."}
+          </p>
+        </div>
+      </div>
       <div className="grid grid-cols-1 gap-2 border-t border-slate-200 bg-white p-3 text-xs font-bold text-slate-500 sm:grid-cols-3">
         <MapLegend colorClass="bg-[#2563eb]" label="수거 위치" />
         <MapLegend colorClass="bg-[#dc2626]" label="크루 현재 위치" />
