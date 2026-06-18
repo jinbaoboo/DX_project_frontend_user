@@ -75,6 +75,42 @@ const applianceCategories: CategoryDefinition[] = [
         ],
         tags: ["24kg", "AI DD", "오브제컬렉션"],
       },
+      {
+        slug: "t10wv3",
+        name: "LG 통돌이 세탁기 10kg 2등급",
+        grade: "보급형",
+        originalPrice: 479000,
+        sameDayEligible: true,
+        imageUrl: "https://www.lge.co.kr/kr/images/washing-machines/md10708830/gallery/medium-interior01.jpg",
+        summary: "10kg / 통돌이 / 2등급",
+        detail: "통돌이 방식으로 강력한 세탁력을 발휘하고 10kg 용량으로 1~2인 가구에 꼭 맞는 크기예요.",
+        recommendedFor: "혼자 또는 둘이 사는 집에서 실속 있는 세탁기를 원할 때 추천해요.",
+        highlights: ["통돌이 방식으로 강력한 세탁력을 제공해요", "10kg 용량으로 1~2인 가구에 딱 맞아요", "에너지 2등급으로 전기요금 부담이 적어요"],
+        specs: [
+          { label: "용량", value: "10kg" },
+          { label: "타입", value: "통돌이" },
+          { label: "에너지", value: "2등급" },
+        ],
+        tags: ["10kg", "통돌이", "2등급"],
+      },
+      {
+        slug: "fg21kn-obj",
+        name: "LG 트롬 오브제컬렉션 세탁기 21kg 3등급",
+        grade: "프리미엄",
+        originalPrice: 1490000,
+        sameDayEligible: false,
+        imageUrl: "https://www.lge.co.kr/kr/images/washing-machines/md10412832/gallery/medium-interior01.jpg",
+        summary: "21kg / AI DD / 오브제컬렉션 / 3등급",
+        detail: "21kg 대용량으로 대가족 세탁량을 거뜬히 처리하고 오브제컬렉션 디자인으로 공간에 잘 어울려요.",
+        recommendedFor: "3인 이상 가족이나 이불·수건 세탁이 잦은 집에 추천해요.",
+        highlights: ["21kg 대용량으로 대가족 세탁도 한 번에 해결해요", "오브제컬렉션 디자인으로 인테리어와 잘 어울려요", "AI DD 기술로 세탁물 특성에 맞는 코스를 자동 선택해요"],
+        specs: [
+          { label: "용량", value: "21kg" },
+          { label: "주요 기능", value: "AI DD" },
+          { label: "에너지", value: "3등급" },
+        ],
+        tags: ["21kg", "AI DD", "오브제컬렉션"],
+      },
     ],
   },
   {
@@ -99,6 +135,42 @@ const applianceCategories: CategoryDefinition[] = [
           { label: "에너지", value: "1등급" },
         ],
         tags: ["832L", "양문형", "오브제컬렉션"],
+      },
+      {
+        slug: "me300l-1grade",
+        name: "LG 모던엣지 냉장고 300L 1등급",
+        grade: "일반/중형",
+        originalPrice: 980000,
+        sameDayEligible: false,
+        imageUrl: "https://www.lge.co.kr/kr/images/refrigerators/md09091857/gallery/medium-interior01.jpg",
+        summary: "300L / 모던엣지 / 1등급",
+        detail: "300L 용량으로 2~3인 가구에 딱 맞고 에너지 1등급으로 전기요금 부담을 줄여줘요. 모던엣지 디자인으로 주방에 깔끔하게 어울려요.",
+        recommendedFor: "2~3인 가구나 에너지 효율을 중요하게 보는 집에 추천해요.",
+        highlights: ["300L 용량으로 2~3인 가구에 적합해요", "에너지 1등급으로 전기요금을 아낄 수 있어요", "모던엣지 디자인으로 주방 인테리어와 잘 어울려요"],
+        specs: [
+          { label: "용량", value: "300L" },
+          { label: "에너지", value: "1등급" },
+          { label: "디자인", value: "모던엣지" },
+        ],
+        tags: ["300L", "1등급", "모던엣지"],
+      },
+      {
+        slug: "dios-fitmax-504l",
+        name: "LG 디오스 오브제컬렉션 냉장고 Fit & Max 504L 2등급",
+        grade: "프리미엄",
+        originalPrice: 3850000,
+        sameDayEligible: false,
+        imageUrl: "https://www.lge.co.kr/kr/images/refrigerators/md10555924/gallery/medium-interior01.jpg",
+        summary: "504L / Fit & Max / 오브제컬렉션 / 2등급",
+        detail: "504L Fit & Max 설계로 공간 활용도를 극대화하고 오브제컬렉션 디자인으로 주방 인테리어의 중심이 돼요.",
+        recommendedFor: "넓은 수납 공간과 프리미엄 디자인을 동시에 원하는 집에 추천해요.",
+        highlights: ["504L Fit & Max로 수납 공간을 최대한 활용해요", "오브제컬렉션 디자인으로 주방의 완성도를 높여요", "디오스 라인의 검증된 냉장 성능을 제공해요"],
+        specs: [
+          { label: "용량", value: "504L" },
+          { label: "설계", value: "Fit & Max" },
+          { label: "에너지", value: "2등급" },
+        ],
+        tags: ["504L", "Fit & Max", "오브제컬렉션"],
       },
     ],
   },
@@ -125,6 +197,42 @@ const applianceCategories: CategoryDefinition[] = [
         ],
         tags: ["48인치", "OLED evo", "AI 화질"],
       },
+      {
+        slug: "led107-stand",
+        name: "LG 일반 LED TV (스탠드형) 107cm",
+        grade: "일반/중형",
+        originalPrice: 670000,
+        sameDayEligible: true,
+        imageUrl: "https://www.lge.co.kr/kr/images/tvs/md08989826/gallery/medium-interior01.jpg",
+        summary: "107cm(42인치) / LED / 스탠드형",
+        detail: "107cm 화면으로 영화, 드라마 시청에 충분하고 스탠드형이라 설치가 간편해요. 합리적인 가격의 일반 LED 모델이에요.",
+        recommendedFor: "거실 서브 TV나 방에 놓을 적당한 크기의 TV를 찾는 집에 추천해요.",
+        highlights: ["107cm 화면으로 영화·드라마 시청에 충분해요", "스탠드형으로 별도 설치 없이 바로 사용해요", "합리적인 가격으로 부담 없이 교체할 수 있어요"],
+        specs: [
+          { label: "화면 크기", value: "107cm (42인치)" },
+          { label: "패널", value: "LED" },
+          { label: "타입", value: "스탠드형" },
+        ],
+        tags: ["107cm", "42인치", "LED"],
+      },
+      {
+        slug: "led80-stand",
+        name: "LG 일반 LED TV (스탠드형) 80cm",
+        grade: "보급형",
+        originalPrice: 450000,
+        sameDayEligible: true,
+        imageUrl: "https://www.lge.co.kr/kr/images/tvs/md10791858/gallery/medium-interior01.jpg",
+        summary: "80cm(32인치) / LED / 스탠드형",
+        detail: "80cm 콤팩트한 크기로 방이나 주방에 두기 좋고 부담 없는 가격으로 가볍게 교체할 수 있어요.",
+        recommendedFor: "침실이나 주방에 작은 TV를 놓고 싶은 집에 추천해요.",
+        highlights: ["80cm 콤팩트한 크기로 좁은 공간에도 잘 맞아요", "스탠드형으로 설치 없이 바로 사용해요", "실속 있는 가격으로 부담 없이 교체해요"],
+        specs: [
+          { label: "화면 크기", value: "80cm (32인치)" },
+          { label: "패널", value: "LED" },
+          { label: "타입", value: "스탠드형" },
+        ],
+        tags: ["80cm", "32인치", "LED"],
+      },
     ],
   },
   {
@@ -150,6 +258,42 @@ const applianceCategories: CategoryDefinition[] = [
         ],
         tags: ["22.8㎡", "1등급", "휘센"],
       },
+      {
+        slug: "4season-22-1grade",
+        name: "LG 휘센 사계절에어컨 (벽걸이) 22㎡ 1등급",
+        grade: "프리미엄",
+        originalPrice: 1998000,
+        sameDayEligible: false,
+        imageUrl: "https://www.lge.co.kr/kr/images/air-conditioners/md10248830/gallery/medium-interior01.jpg",
+        summary: "22㎡ / 사계절 / 벽걸이 / 1등급",
+        detail: "냉방과 난방을 모두 지원하는 사계절 에어컨으로 연중 내내 쾌적한 실내 환경을 유지해요. 에너지 1등급으로 전기요금 부담도 낮아요.",
+        recommendedFor: "냉난방을 하나로 해결하고 싶은 집이나 에너지 효율을 중요하게 보는 분께 추천해요.",
+        highlights: ["냉방·난방 모두 지원해 사계절 내내 쾌적해요", "에너지 1등급으로 전기요금을 아낄 수 있어요", "22㎡에 최적화된 벽걸이 타입이에요"],
+        specs: [
+          { label: "냉방 면적", value: "22㎡" },
+          { label: "기능", value: "냉난방 사계절" },
+          { label: "에너지", value: "1등급" },
+        ],
+        tags: ["22㎡", "사계절", "1등급"],
+      },
+      {
+        slug: "winner-obj-65",
+        name: "LG 휘센 오브제컬렉션 위너 에어컨 65.9㎡",
+        grade: "프리미엄",
+        originalPrice: 2533000,
+        sameDayEligible: false,
+        imageUrl: "https://www.lge.co.kr/kr/images/air-conditioners/md09948826/gallery/medium-interior01.jpg",
+        summary: "65.9㎡ / 위너 / 오브제컬렉션",
+        detail: "65.9㎡ 넓은 공간을 강력하게 냉방하고 오브제컬렉션 위너 디자인으로 거실 인테리어와 자연스럽게 어울려요.",
+        recommendedFor: "거실처럼 넓은 공간을 냉방하거나 프리미엄 디자인 에어컨을 원하는 집에 추천해요.",
+        highlights: ["65.9㎡ 넓은 공간도 강력하게 냉방해요", "오브제컬렉션 위너 디자인으로 거실 인테리어와 잘 어울려요", "휘센 라인의 검증된 냉방 성능을 제공해요"],
+        specs: [
+          { label: "냉방 면적", value: "65.9㎡" },
+          { label: "타입", value: "벽걸이형" },
+          { label: "제품군", value: "오브제컬렉션 위너" },
+        ],
+        tags: ["65.9㎡", "위너", "오브제컬렉션"],
+      },
     ],
   },
   {
@@ -174,6 +318,42 @@ const applianceCategories: CategoryDefinition[] = [
           { label: "제품군", value: "오브제컬렉션" },
         ],
         tags: ["39L", "광파오븐", "오브제컬렉션"],
+      },
+      {
+        slug: "obj-mw-25l",
+        name: "LG 디오스 오브제컬렉션 전자레인지 25L",
+        grade: "보급형",
+        originalPrice: 339000,
+        sameDayEligible: true,
+        imageUrl: "https://www.lge.co.kr/kr/images/microwaves-and-ovens/md10739828/gallery/medium-interior01.jpg",
+        summary: "25L / 전자레인지 / 오브제컬렉션",
+        detail: "25L 용량으로 1~2인 가구에 적합하고 오브제컬렉션 디자인으로 주방 인테리어와 자연스럽게 어울려요.",
+        recommendedFor: "간단한 음식 데우기와 해동을 주로 하는 1~2인 가구에 추천해요.",
+        highlights: ["25L 용량으로 1~2인 가구 일상 사용에 충분해요", "오브제컬렉션 디자인으로 주방과 잘 어울려요", "합리적인 가격으로 부담 없이 교체할 수 있어요"],
+        specs: [
+          { label: "용량", value: "25L" },
+          { label: "타입", value: "전자레인지" },
+          { label: "제품군", value: "오브제컬렉션" },
+        ],
+        tags: ["25L", "전자레인지", "오브제컬렉션"],
+      },
+      {
+        slug: "obj-oven-32l",
+        name: "LG 디오스 오브제컬렉션 광파오븐 32L",
+        grade: "일반/중형",
+        originalPrice: 1055000,
+        sameDayEligible: true,
+        imageUrl: "https://www.lge.co.kr/kr/images/microwaves-and-ovens/md10200826/gallery/medium-interior01.jpg",
+        summary: "32L / 광파오븐 / 오브제컬렉션",
+        detail: "32L 광파오븐으로 전자레인지와 오븐 기능을 하나로 쓸 수 있어요. 오브제컬렉션 디자인으로 주방 분위기를 높여줘요.",
+        recommendedFor: "오븐 요리를 즐기거나 주방 가전을 오브제컬렉션으로 통일하고 싶은 집에 추천해요.",
+        highlights: ["광파오븐으로 전자레인지·오븐 기능을 하나로 써요", "32L 용량으로 다양한 요리에 활용할 수 있어요", "오브제컬렉션으로 주방 인테리어 완성도를 높여요"],
+        specs: [
+          { label: "용량", value: "32L" },
+          { label: "기능", value: "광파오븐" },
+          { label: "제품군", value: "오브제컬렉션" },
+        ],
+        tags: ["32L", "광파오븐", "오브제컬렉션"],
       },
     ],
   },
@@ -249,10 +429,7 @@ export function PurchasePanel({
     ...applianceCategories.filter((category) => category.id !== preferredCategoryId),
   ];
   const categoryOptions = orderedCategories.map((category) => ({ id: category.id, label: category.label }));
-  const visibleProducts = [
-    ...purchaseProducts.filter((product) => product.categoryId === preferredCategoryId),
-    ...purchaseProducts.filter((product) => product.categoryId !== preferredCategoryId),
-  ];
+  const visibleProducts = purchaseProducts.filter((product) => product.categoryId === selectedCategoryId);
 
   useEffect(() => {
     setSelectedCategoryId(preferredCategoryId);
@@ -284,9 +461,6 @@ export function PurchasePanel({
       <div className="mt-4">
         <div className="flex items-center justify-between">
           <h3 className="text-[13px] font-bold text-ink">가전제품 카테고리</h3>
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
-            {visibleProducts.length}개
-          </span>
         </div>
         <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categoryOptions.map((category) => {
