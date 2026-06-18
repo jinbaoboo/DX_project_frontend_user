@@ -955,7 +955,6 @@ function RecognizingView({ applianceLabel }: { applianceLabel: string }) {
     <section className="flex min-h-full flex-col overflow-hidden bg-[#111318] text-white">
       <div className="flex items-start justify-between gap-4 px-5 pt-16">
         <div>
-          <p className="text-xs font-semibold text-white/55">STEP 1-2</p>
           <h2 className="mt-1 text-xl font-bold">VLM + OpenAI 분석 중</h2>
         </div>
         <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80">
@@ -1048,7 +1047,6 @@ function ReviewView({
 
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold text-lgred">STEP 1-3</p>
           <h2 className="mt-1 text-xl font-bold text-ink">AI 인식 결과 확인</h2>
         </div>
         <span className="shrink-0 rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
@@ -1231,7 +1229,6 @@ function AnalyzingView({ applianceLabel }: { applianceLabel: string }) {
     <section className="flex min-h-full flex-col overflow-hidden bg-[#111318] text-white shadow-sm">
       <div className="flex items-start justify-between gap-4 px-5 pt-16">
         <div>
-          <p className="text-xs font-semibold text-white/55">STEP 2</p>
           <h2 className="mt-1 text-xl font-bold">감정 중</h2>
         </div>
         <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80">

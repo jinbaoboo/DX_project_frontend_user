@@ -31,6 +31,7 @@ type CreditPanelProps = {
   onRequestReReview: () => void;
   onOpenMarket: () => void;
   onReturnHome: () => void;
+  onCreditIssued?: () => void;
 };
 
 export function CreditPanel({
@@ -42,11 +43,18 @@ export function CreditPanel({
   onRequestReReview,
   onOpenMarket,
   onReturnHome,
+  onCreditIssued,
 }: CreditPanelProps) {
   const [reReviewOpen, setReReviewOpen] = useState(false);
   const [showReReviewResult, setShowReReviewResult] = useState(false);
   const [creditIssued, setCreditIssued] = useState(false);
   const credit = swapRequest?.credit;
+  const displayCreditAmount =
+    credit?.amount ??
+    swapRequest?.finalValuation?.amount ??
+    swapRequest?.rewardEstimate?.estimatedFinalCredit ??
+    swapRequest?.preValuation.maxEstimatedValue ??
+    0;
 
   if (reReviewOpen) {
     return (
@@ -58,28 +66,26 @@ export function CreditPanel({
 
   return (
     <section className="flex min-h-full flex-col rounded-[28px] bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-2 text-sm font-bold text-lgred">
-        <Service3DIcon type="check" className="h-7 w-7 shrink-0" />
-        STEP 5. 최종 검수 및 크레딧
-      </div>
-
       {reviewStatus === "reReviewPending" ? (
         <ReReviewPendingView onReturnHome={onReturnHome} />
       ) : reviewStatus === "reReviewCompleted" && !showReReviewResult ? (
         <ReReviewReadyView onOpenResult={() => setShowReReviewResult(true)} />
-      ) : credit ? (
+      ) : credit || (reviewStatus === "reviewCompleted" && displayCreditAmount > 0) ? (
         creditIssued ? (
           <CreditIssuedView
-            amount={credit.amount}
+            amount={displayCreditAmount}
             onReturnHome={onReturnHome}
             onUseCredit={onOpenMarket}
           />
         ) : (
           <FinalCreditView
-            amount={credit.amount}
+            amount={displayCreditAmount}
             allowReReview={reviewStatus !== "reReviewCompleted"}
             fileName={fileName}
-            onIssueCredit={() => setCreditIssued(true)}
+            onIssueCredit={() => {
+              setCreditIssued(true);
+              onCreditIssued?.();
+            }}
             onReReview={() => setReReviewOpen(true)}
           />
         )
@@ -244,10 +250,10 @@ function FinalCreditView({
             </div>
           </div>
           <div className="p-3">
-            <p className="text-xs font-semibold text-lgred">최종 감정가</p>
-            <p className="mt-1 text-3xl font-bold leading-none text-ink">₹{amount.toLocaleString()}</p>
+            <p className="text-xs font-semibold text-lgred">받을 크레딧</p>
+            <p className="mt-1 text-3xl font-bold leading-none text-ink">{amount.toLocaleString()} 크레딧</p>
             <p className="mt-2 text-xs leading-4 text-slate-500">
-              추가 검수 결과를 기준으로 산정된 확정 금액입니다.
+              최종 검수 결과를 기준으로 확정된 보상 크레딧입니다.
             </p>
           </div>
         </div>
@@ -291,7 +297,7 @@ function CreditIssuedView({
       <div className="mt-4 rounded-3xl border border-lgred/20 bg-lgred/10 p-6 text-center">
         <Service3DIcon type="credit" className="mx-auto h-16 w-16" />
         <p className="mt-4 text-xs font-semibold text-lgred">크레딧 발급 완료</p>
-        <h2 className="mt-2 text-2xl font-bold text-ink">₹{amount.toLocaleString()} 크레딧을 받았어요</h2>
+        <h2 className="mt-2 text-2xl font-bold text-ink">{amount.toLocaleString()} 크레딧을 받았어요</h2>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           발급된 크레딧은 ThinQ 안에서 새 LG 가전을 구매하거나 교체 예약을 진행할 때 사용할 수 있습니다.
         </p>

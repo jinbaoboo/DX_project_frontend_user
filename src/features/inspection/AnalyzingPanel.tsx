@@ -29,7 +29,6 @@ export function AnalyzingPanel({ applianceLabel, error, onRetry, onRetake }: Ana
       </div>
 
       <div className="shrink-0 text-center">
-        <p className="text-xs font-semibold text-lgred">STEP 2</p>
         <h2 className="mt-2 text-3xl font-bold">
           {hasError ? "감정 연결을 확인해주세요" : "감정중..."}
         </h2>

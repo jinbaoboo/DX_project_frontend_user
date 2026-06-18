@@ -118,7 +118,7 @@ export function PreValuationPanel({
             </div>
 
             <p className="mt-3 truncate text-[10px] font-semibold leading-4 text-slate-500">
-              최종 크레딧은 수거 후 상태와 선택한 구매 제품 가격에 따라 달라질 수 있어요.
+              수거 후 상태와 선택 제품에 따라 달라질 수 있어요.
             </p>
           </div>
 

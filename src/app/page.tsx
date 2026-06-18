@@ -13,18 +13,31 @@ import {
 import {
   AirVent,
   ArrowLeft,
+  BookOpen,
+  CalendarDays,
   Check,
   ChevronRight,
   CheckCircle2,
+  Compass,
   Home,
+  Headphones,
+  Info,
+  Megaphone,
+  Menu,
   Microwave,
   Plus,
+  PlaySquare,
   Refrigerator,
-  ShoppingBag,
+  RotateCw,
+  Settings,
   Sparkles,
   Tv,
+  User,
   WashingMachine,
   Wind,
+  X,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
@@ -47,6 +60,7 @@ import {
   createSwapRequestForUser,
   firebaseLogin,
   getLatestSwapRequest,
+  getSwapRequest,
   requestInstantCall,
   updateAppliance,
   type DemoUser,
@@ -118,6 +132,105 @@ const applianceTints: Record<ApplianceId, string> = {
   tv: "from-[#eceaff] to-[#d9d6fb]",
   air_purifier: "from-[#e9f8ec] to-[#d2efd8]",
 };
+
+type HomeTab = "home" | "devices" | "care" | "menu";
+
+type DeviceBenefit = {
+  id: string;
+  deviceLabel: string;
+  deviceModel: string;
+  title: string;
+  subtitle: string;
+  planName: string;
+  validUntil: string;
+  iconType: Service3DIconType;
+  detail: string;
+  items: string[];
+};
+
+type OwnedDevice = {
+  id: string;
+  applianceId: ApplianceId;
+  label: string;
+  model: string;
+  status: string;
+  location: string;
+  connectedAt: string;
+  benefits: DeviceBenefit[];
+};
+
+const ownedDevices: OwnedDevice[] = [
+  {
+    id: "owned-washer",
+    applianceId: "washing_machine",
+    label: "세탁기",
+    model: "TROMM AI DD",
+    status: "대기 중",
+    location: "세탁실",
+    connectedAt: "2025.09 등록",
+    benefits: [
+      {
+        id: "washer-amc",
+        deviceLabel: "세탁기",
+        deviceModel: "TROMM AI DD",
+        title: "AMC 정기 점검 1회",
+        subtitle: "드럼, 급수, 배수 상태를 방문 점검해요.",
+        planName: "ThinQ Care AMC",
+        validUntil: "2026.12.31까지",
+        iconType: "clipboard",
+        detail: "세탁기 사용 패턴과 센서 상태를 기준으로 엔지니어 방문 점검을 예약할 수 있는 혜택이에요.",
+        items: ["드럼 내부 오염도 확인", "급수/배수 라인 점검", "이상 진동 및 소음 체크"],
+      },
+      {
+        id: "washer-cleaning",
+        deviceLabel: "세탁기",
+        deviceModel: "TROMM AI DD",
+        title: "통살균 케어 할인",
+        subtitle: "전문 세척 서비스 결제 시 20% 할인돼요.",
+        planName: "AMC 추가 혜택",
+        validUntil: "2026.09.30까지",
+        iconType: "check",
+        detail: "자주 쓰는 세탁 코스와 최근 사용량을 반영해 통살균 케어를 할인된 금액으로 받을 수 있어요.",
+        items: ["방문 세척 20% 할인", "세척 후 상태 리포트 제공", "다음 케어 알림 자동 등록"],
+      },
+    ],
+  },
+  {
+    id: "owned-fridge",
+    applianceId: "refrigerator",
+    label: "냉장고",
+    model: "LG DIOS 오브제컬렉션",
+    status: "정상",
+    location: "주방",
+    connectedAt: "2024.11 등록",
+    benefits: [
+      {
+        id: "fridge-amc",
+        deviceLabel: "냉장고",
+        deviceModel: "LG DIOS 오브제컬렉션",
+        title: "AMC 냉각 성능 점검",
+        subtitle: "냉장/냉동 온도 유지 상태를 확인해요.",
+        planName: "ThinQ Care AMC",
+        validUntil: "2026.08.31까지",
+        iconType: "search",
+        detail: "온도 이력과 문 열림 패턴을 기준으로 냉각 성능을 점검하고 필요한 관리 항목을 안내해요.",
+        items: ["냉각 성능 진단", "도어 패킹 상태 확인", "필터 및 내부 위생 관리 안내"],
+      },
+      {
+        id: "fridge-filter",
+        deviceLabel: "냉장고",
+        deviceModel: "LG DIOS 오브제컬렉션",
+        title: "소모품 교체 알림",
+        subtitle: "필터 교체 시기와 구매 혜택을 함께 알려줘요.",
+        planName: "AMC 멤버십 혜택",
+        validUntil: "상시 제공",
+        iconType: "bell",
+        detail: "필터나 주요 소모품 교체 시점이 가까워지면 ThinQ 알림과 함께 혜택을 확인할 수 있어요.",
+        items: ["교체 주기 알림", "공식 소모품 구매 연결", "보유 제품 기준 추천"],
+      },
+    ],
+  },
+];
 
 const marketProducts = [
   {
@@ -212,10 +325,10 @@ function createPreviewSwapRequest(): SwapRequest {
     booking: {
       bookingDate: "2026-06-15",
       bookingTime: "09:00",
-      address: "",
-      detailAddress: "",
-      pickupLat: null,
-      pickupLng: null,
+      address: "서울특별시 중구 세종대로 110",
+      detailAddress: "Demo pickup point",
+      pickupLat: 37.5665,
+      pickupLng: 126.978,
     },
     pickupRequest: {
       pickupRequestId: -404,
@@ -223,7 +336,7 @@ function createPreviewSwapRequest(): SwapRequest {
       status: "IN_PROGRESS",
       crewId: 101,
       crewName: "민지 크루",
-      address: "",
+      address: "서울특별시 중구 세종대로 110",
       scheduledAt: "2026-06-15 09:00",
       requestedAt: now,
       nearbyCrews: [],
@@ -319,6 +432,92 @@ function createPreviewSwapRequest(): SwapRequest {
   };
 }
 
+function createAcceptedTrackingRequest(baseRequest?: SwapRequest | null): SwapRequest {
+  const fallback = createPreviewSwapRequest();
+  const now = new Date().toISOString();
+  const booking = baseRequest?.booking ?? fallback.booking;
+  const pickupLat = booking?.pickupLat ?? fallback.booking?.pickupLat ?? 37.5665;
+  const pickupLng = booking?.pickupLng ?? fallback.booking?.pickupLng ?? 126.978;
+  const pickupAddress = booking?.address || fallback.booking?.address || "서울특별시 중구 세종대로 110";
+  const crewLocation = {
+    lat: pickupLat + 0.0062,
+    lng: pickupLng + 0.0054,
+    heading: 84,
+    speed: 22,
+    updatedAt: now,
+  };
+
+  return {
+    ...fallback,
+    ...baseRequest,
+    booking: {
+      ...(fallback.booking ?? {
+        bookingDate: "2026-06-15",
+        bookingTime: "09:00",
+        address: pickupAddress,
+      }),
+      ...(booking ?? {}),
+      address: pickupAddress,
+      pickupLat,
+      pickupLng,
+    },
+    pickupRequest: {
+      ...(fallback.pickupRequest as NonNullable<SwapRequest["pickupRequest"]>),
+      ...(baseRequest?.pickupRequest ?? {}),
+      status: "IN_PROGRESS",
+      crewId: baseRequest?.pickupRequest?.crewId ?? fallback.pickupRequest?.crewId ?? 101,
+      crewName: baseRequest?.pickupRequest?.crewName ?? fallback.pickupRequest?.crewName ?? "민지 크루",
+      address: pickupAddress,
+      nearbyCrews: baseRequest?.pickupRequest?.nearbyCrews ?? fallback.pickupRequest?.nearbyCrews ?? [],
+    },
+    crewProfile: baseRequest?.crewProfile ?? fallback.crewProfile,
+    dispatchInfo: {
+      ...(fallback.dispatchInfo as NonNullable<SwapRequest["dispatchInfo"]>),
+      ...(baseRequest?.dispatchInfo ?? {}),
+      alertMessage: "근처 수거 크루가 요청을 수락했어요.",
+      recommendedReason: "예약 위치와 가장 가까운 크루예요.",
+    },
+    tracking: {
+      ...fallback.tracking,
+      ...(baseRequest?.tracking ?? {}),
+      message: "크루가 수거 위치로 이동 중이에요.",
+      estimatedArrivalAt: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+      driverLocation: baseRequest?.tracking.driverLocation ?? crewLocation,
+      phase: "EN_ROUTE_TO_PICKUP",
+      metrics: {
+        crewToPickupMeters: baseRequest?.tracking.metrics?.crewToPickupMeters ?? 820,
+        crewToProcessingCenterMeters: baseRequest?.tracking.metrics?.crewToProcessingCenterMeters ?? 9400,
+        locationLive: true,
+      },
+      events: baseRequest?.tracking.events?.length
+        ? baseRequest.tracking.events
+        : [
+            { eventType: "REQUESTED", message: "수거 예약이 접수됐어요.", createdAt: now },
+            { eventType: "ASSIGNED", message: "민지 크루가 수락했어요.", createdAt: now },
+            { eventType: "EN_ROUTE", message: "크루가 수거 위치로 이동 중이에요.", createdAt: now },
+          ],
+    },
+  };
+}
+
+const crewAcceptedPickupStatuses = new Set(["ASSIGNED", "IN_PROGRESS", "ARRIVED"]);
+const crewAcceptedTrackingPhases = new Set(["CREW_ASSIGNED", "EN_ROUTE_TO_PICKUP", "PICKUP_CONFIRMED"]);
+const crewAcceptedRequestStatuses = new Set(["CREW_ASSIGNED", "PICKUP_IN_PROGRESS", "CREW_ARRIVED"]);
+
+function isCrewAcceptedSwapRequest(request: SwapRequest | null | undefined) {
+  if (!request) return false;
+
+  const pickupStatus = request.pickupRequest?.status ?? "";
+  const trackingPhase = request.tracking.phase ?? "";
+  const requestStatus = request.status ?? "";
+
+  return (
+    crewAcceptedPickupStatuses.has(pickupStatus) ||
+    crewAcceptedTrackingPhases.has(trackingPhase) ||
+    crewAcceptedRequestStatuses.has(requestStatus)
+  );
+}
+
 function previewModelNameFor(appliance: ApplianceId) {
   switch (appliance) {
     case "refrigerator":
@@ -380,6 +579,11 @@ export default function HomePage() {
 
     if (pickupStatus === "COMPLETED" || restored.status === "REWARD_READY") {
       setHomeSwapStatus("reviewCompleted");
+      return;
+    }
+
+    if (isCrewAcceptedSwapRequest(restored)) {
+      setHomeSwapStatus("pickup");
       return;
     }
 
@@ -555,14 +759,13 @@ export default function HomePage() {
       setReservationLabel(booking.reservedAt);
       setReservationAddress(booking.pickupAddress ?? "");
 
-      if (booking.mode === "schedule") {
-        setHomeSwapStatus("reserved");
-        setSwapStep("reservationComplete");
+      if (isCrewAcceptedSwapRequest(data)) {
+        openAcceptedTracking(data);
         return;
       }
 
-      setHomeSwapStatus("pickup");
-      setSwapStep("tracking");
+      setHomeSwapStatus("reserved");
+      setSwapStep("ongoing");
     },
   });
 
@@ -637,13 +840,110 @@ export default function HomePage() {
 
   const openPurchaseSelectionScreen = () => {
     setSelectedPurchaseProductId((current) => current ?? getDefaultProductIdForCategory(selectedAppliance));
-    openBookingScreen("pickup");
+    setSwapStep("market");
   };
 
   const openOngoingReservation = () => {
+    const currentRequest = activeReservationRequest ?? swapRequest;
+    if (homeSwapStatus === "pickup") {
+      openAcceptedTracking(currentRequest);
+      return;
+    }
+
+    if (isCrewAcceptedSwapRequest(currentRequest)) {
+      openAcceptedTracking(currentRequest);
+      return;
+    }
+
     setSwapStep("ongoing");
     setSwapItOpened(true);
   };
+
+  const openAcceptedTracking = (sourceRequest?: SwapRequest | null) => {
+    const acceptedRequest = createAcceptedTrackingRequest(sourceRequest ?? activeReservationRequest ?? swapRequest);
+    setActiveReservationRequest(acceptedRequest);
+    setSwapRequest(acceptedRequest);
+    setHomeSwapStatus("pickup");
+    setSwapStep("tracking");
+    setMarketOpened(false);
+    setSwapItOpened(true);
+  };
+
+  useEffect(() => {
+    const shouldWatchReservation =
+      homeSwapStatus === "reserved" || homeSwapStatus === "pickup";
+
+    if (!shouldWatchReservation) {
+      return undefined;
+    }
+
+    const currentRequest = activeReservationRequest ?? swapRequest;
+    if (!currentRequest) {
+      return undefined;
+    }
+
+    if (homeSwapStatus === "reserved" && isCrewAcceptedSwapRequest(currentRequest)) {
+      if (swapItOpened && (swapStep === "reservationComplete" || swapStep === "ongoing")) {
+        openAcceptedTracking(currentRequest);
+        return undefined;
+      } else {
+        setHomeSwapStatus("pickup");
+      }
+    }
+
+    if (currentRequest.id < 0) {
+      if (!swapItOpened || swapStep !== "ongoing") {
+        return undefined;
+      }
+
+      const timer = window.setTimeout(() => openAcceptedTracking(currentRequest), 2200);
+      return () => window.clearTimeout(timer);
+    }
+
+    let disposed = false;
+
+    const checkCrewAccepted = async () => {
+      try {
+        const latest = await getSwapRequest(currentRequest.id);
+        if (disposed) return;
+
+        const latestReservationLabel =
+          latest.booking?.bookingDate && latest.booking?.bookingTime
+            ? `${latest.booking.bookingDate} ${latest.booking.bookingTime}`
+            : latest.pickupRequest?.scheduledAt ?? reservationLabel;
+
+        setSwapRequest(latest);
+        setActiveReservationRequest(latest);
+        setReservationLabel(latestReservationLabel);
+        setReservationAddress(latest.booking?.address ?? latest.pickupRequest?.address ?? reservationAddress);
+
+        if (latest.pickupRequest?.status === "COMPLETED" || latest.status === "REWARD_READY") {
+          setHomeSwapStatus("reviewCompleted");
+          return;
+        }
+
+        if (isCrewAcceptedSwapRequest(latest)) {
+          if (swapItOpened && (swapStep === "reservationComplete" || swapStep === "ongoing")) {
+            openAcceptedTracking(latest);
+          } else {
+            setHomeSwapStatus("pickup");
+          }
+        }
+      } catch {
+        // 다음 polling 주기에서 다시 확인해요.
+      }
+    };
+
+    void checkCrewAccepted();
+    const timer = window.setInterval(() => {
+      void checkCrewAccepted();
+    }, 2000);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, [activeReservationRequest, homeSwapStatus, reservationAddress, reservationLabel, swapItOpened, swapRequest, swapStep]);
 
   const moveToNextSwapScreen = () => {
     const nextStep = nextSwapStep(swapStep);
@@ -842,6 +1142,7 @@ export default function HomePage() {
                     setSwapStep("credit");
                   }}
                   onFinalize={() => creditMutation.mutate()}
+                  onCreditIssued={() => setHomeSwapStatus("none")}
                   onRequestReReview={() => {
                     setHomeSwapStatus("reReviewPending");
                     setSwapStep("credit");
@@ -858,11 +1159,8 @@ export default function HomePage() {
                     setSwapItOpened(false);
                   }}
                   onCloseReservationComplete={() => setSwapItOpened(false)}
-                  onViewReservation={() => setSwapStep("ongoing")}
-                  onOpenTracking={() => {
-                    setHomeSwapStatus("pickup");
-                    setSwapStep("tracking");
-                  }}
+                  onViewReservation={openOngoingReservation}
+                  onOpenTracking={() => openAcceptedTracking()}
                   onOpenCredit={() => setSwapStep("credit")}
                   onNextScreen={moveToNextSwapScreen}
                 />
@@ -871,6 +1169,7 @@ export default function HomePage() {
                   demoUser={demoUser}
                   homeSwapStatus={homeSwapStatus}
                   reservationLabel={reservationLabel}
+                  swapRequest={activeReservationRequest ?? swapRequest}
                   onBackHome={() => {
                     setMarketOpened(false);
                     setShowSplash(true);
@@ -886,6 +1185,7 @@ export default function HomePage() {
                     setMarketOpened(true);
                   }}
                   onOpenReview={() => {
+                    setMarketOpened(false);
                     setSwapStep("credit");
                     setSwapItOpened(true);
                   }}
@@ -1408,6 +1708,7 @@ function ThinQHomeScreen({
   demoUser,
   homeSwapStatus,
   reservationLabel,
+  swapRequest,
   onBackHome,
   onOpenSwapIt,
   onOpenMarket,
@@ -1418,6 +1719,7 @@ function ThinQHomeScreen({
   demoUser: DemoUser;
   homeSwapStatus: HomeSwapStatus;
   reservationLabel: string;
+  swapRequest: SwapRequest | null;
   onBackHome: () => void;
   onOpenSwapIt: () => void;
   onOpenMarket: () => void;
@@ -1425,19 +1727,38 @@ function ThinQHomeScreen({
   onOpenReservation: () => void;
   onLogout: () => void;
 }) {
+  const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>("home");
+  const [selectedBenefit, setSelectedBenefit] = useState<DeviceBenefit | null>(null);
+  const isNestedHomeTab = activeHomeTab !== "home";
+  const openCurrentSwapStatus =
+    homeSwapStatus === "reviewPending" ||
+    homeSwapStatus === "reviewCompleted" ||
+    homeSwapStatus === "reReviewPending" ||
+    homeSwapStatus === "reReviewCompleted"
+      ? onOpenReview
+      : onOpenReservation;
+  const headerSubtitle =
+    activeHomeTab === "devices"
+      ? "Devices"
+      : activeHomeTab === "care"
+        ? "Care"
+        : activeHomeTab === "menu"
+          ? "Menu"
+          : "Home";
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-cloud px-4 pb-3">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-cloud px-4 pb-0">
       <header className="mb-3 flex items-center justify-between">
         <button
           aria-label="홈 화면으로 돌아가기"
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink"
-          onClick={onBackHome}
+          onClick={isNestedHomeTab ? () => setActiveHomeTab("home") : onBackHome}
         >
           <ArrowLeft size={18} />
         </button>
         <div className="text-center">
           <p className="text-xs font-semibold text-lgred">LG ThinQ</p>
-          <p className="text-[11px] font-semibold text-slate-500">Home</p>
+          <p className="text-[11px] font-semibold text-slate-500">{headerSubtitle}</p>
         </div>
         <button
           className="h-9 rounded-full px-3 text-[11px] font-semibold text-slate-500"
@@ -1447,6 +1768,7 @@ function ThinQHomeScreen({
         </button>
       </header>
 
+      {activeHomeTab === "home" ? (
       <div className="phone-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pb-3">
         <section className="px-1 pb-1 pt-2">
           <p className="text-[15px] font-bold text-slate-500">{demoUser.userName}님, 안녕하세요</p>
@@ -1485,13 +1807,14 @@ function ThinQHomeScreen({
           <SwapItStatusCard
             status={homeSwapStatus}
             reservationLabel={reservationLabel}
-            onOpenReservation={onOpenReservation}
+            swapRequest={swapRequest}
+            onOpenReservation={openCurrentSwapStatus}
           />
         ) : null}
 
-        <section className="rounded-[20px] bg-white p-2 shadow-sm">
+        <section className="rounded-[20px] bg-white p-4 shadow-sm">
           <button
-            className="swapit-pattern-bg relative flex w-full items-center gap-3 overflow-hidden rounded-[18px] p-4 text-left text-white shadow-[0_12px_28px_rgba(90,0,38,0.22)]"
+            className="swapit-pattern-bg relative flex w-full items-center gap-3 overflow-hidden rounded-[18px] p-4 text-left text-white"
             onClick={onOpenSwapIt}
           >
             <span className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-white/12 blur-sm" />
@@ -1523,38 +1846,65 @@ function ThinQHomeScreen({
           </button>
         </section>
 
-        <section className="rounded-[20px] bg-white p-2 shadow-sm">
-          <div className="flex items-center justify-between px-3 py-2.5">
+        <section className="rounded-[20px] bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between px-1 pb-2">
             <h2 className="text-sm font-bold text-ink">내 디바이스</h2>
             <button className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-500">
               전체 2
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            <DeviceCard applianceId="washing_machine" label="세탁기" status="대기 중" />
-            <DeviceCard applianceId="refrigerator" label="냉장고" status="정상" />
+            <DeviceCard applianceId="washing_machine" label="세탁기" onClick={() => setActiveHomeTab("devices")} status="대기 중" />
+            <DeviceCard applianceId="refrigerator" label="냉장고" onClick={() => setActiveHomeTab("devices")} status="정상" />
           </div>
         </section>
       </div>
+      ) : activeHomeTab === "devices" ? (
+        <ThinQDevicesScreen onOpenBenefit={setSelectedBenefit} />
+      ) : activeHomeTab === "care" ? (
+        <ThinQCareScreen />
+      ) : (
+        <ThinQMenuScreen />
+      )}
 
-      <nav className="grid h-[70px] shrink-0 grid-cols-4 rounded-[22px] bg-white px-2 py-2 shadow-sm">
-        <button className="flex flex-col items-center justify-center gap-1 text-lgred">
+      <nav className="-mx-4 grid h-[76px] shrink-0 grid-cols-4 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_20px_rgba(15,23,42,0.06)]">
+        <button
+          className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "home" ? "text-lgred" : "text-slate-500"}`}
+          onClick={() => setActiveHomeTab("home")}
+          type="button"
+        >
           <Home size={20} />
           <span className="text-[10px] font-semibold">홈</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 text-slate-500">
+        <button
+          className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "devices" ? "text-lgred" : "text-slate-500"}`}
+          onClick={() => setActiveHomeTab("devices")}
+          type="button"
+        >
           <Refrigerator size={20} />
           <span className="text-[10px] font-semibold">디바이스</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 text-slate-500" onClick={onOpenReview}>
+        <button
+          className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "care" ? "text-lgred" : "text-slate-500"}`}
+          onClick={() => setActiveHomeTab("care")}
+          type="button"
+        >
           <Sparkles size={20} />
           <span className="text-[10px] font-semibold">케어</span>
         </button>
-        <button className="flex flex-col items-center justify-center gap-1 text-slate-500" onClick={onOpenMarket}>
-          <ShoppingBag size={20} />
+        <button
+          className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "menu" ? "text-lgred" : "text-slate-500"}`}
+          onClick={() => setActiveHomeTab("menu")}
+          type="button"
+        >
+          <Menu size={20} strokeWidth={2.5} />
           <span className="text-[10px] font-semibold">메뉴</span>
         </button>
       </nav>
+
+      {selectedBenefit ? (
+        <DeviceBenefitSheet benefit={selectedBenefit} onClose={() => setSelectedBenefit(null)} />
+      ) : null}
     </div>
   );
 }
@@ -1678,93 +2028,160 @@ const RecycleStatusIcon = createServiceStatusIcon("recycle");
 function SwapItStatusCard({
   status,
   reservationLabel,
+  swapRequest,
   onOpenReservation,
 }: {
   status: HomeSwapStatus;
   reservationLabel: string;
+  swapRequest: SwapRequest | null;
   onOpenReservation: () => void;
 }) {
   const isCompleted = status === "reviewCompleted" || status === "reReviewCompleted";
-  const card = getHomeStatusCard(status, reservationLabel);
+  const isAccepted = status === "pickup";
+  const card = getHomeStatusCard(status, reservationLabel, swapRequest);
   const Icon = card.icon;
 
   return (
     <section>
       <button
         className={
-          "flex w-full items-center gap-3 rounded-[20px] p-4 text-left shadow-sm " +
-          (isCompleted ? "bg-lgred text-white" : "bg-white text-ink")
+          "w-full rounded-[20px] p-4 text-left shadow-sm transition active:scale-[0.99] " +
+          (isCompleted
+            ? "bg-lgred text-white"
+            : isAccepted
+              ? "border border-lgred/15 bg-[linear-gradient(135deg,#fff7f9_0%,#ffffff_64%,#f8fafc_100%)] text-ink"
+              : "border border-[#f1d7df] bg-white text-ink")
         }
         onClick={onOpenReservation}
       >
-        <span
-          className={
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] " +
-            (isCompleted ? "bg-white/15 text-white" : "bg-lgred/10 text-lgred")
-          }
-        >
-          <Icon size={22} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className={"mb-0.5 block text-[11px] font-semibold " + (isCompleted ? "text-white/70" : "text-lgred")}>
-            진행 중인 예약
+        <span className="flex items-start gap-3">
+          <span
+            className={
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] " +
+              (isCompleted ? "bg-white/15 text-white" : isAccepted ? "bg-lgred/12 text-lgred" : "bg-[#fff0f5] text-lgred")
+            }
+          >
+            <Icon size={22} />
           </span>
-          <span className="block text-sm font-bold">{card.title}</span>
-          <span className={"mt-0.5 block truncate text-xs " + (isCompleted ? "text-white/75" : "text-slate-500")}>
-            {card.description}
+          <span className="min-w-0 flex-1">
+            <span className={"inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold " + (isCompleted ? "bg-white/15 text-white/80" : card.badgeClass)}>
+              {card.badge}
+            </span>
+            <span className="mt-2 block text-sm font-bold leading-5">{card.title}</span>
+            <span className={"mt-1 block text-xs font-medium leading-5 " + (isCompleted ? "text-white/75" : "text-slate-500")}>
+              {card.description}
+            </span>
           </span>
+          <ChevronRight size={20} className="mt-2 shrink-0" />
         </span>
-        <ChevronRight size={20} />
+
+        {card.meta.length ? (
+          <span className={"mt-3 grid grid-cols-2 gap-2 border-t pt-3 " + (isCompleted ? "border-white/15" : "border-slate-100")}>
+            {card.meta.map((item) => (
+              <span key={item.label} className={isCompleted ? "rounded-2xl bg-white/10 px-3 py-2" : "rounded-2xl bg-slate-50 px-3 py-2"}>
+                <span className={"block text-[10px] font-semibold " + (isCompleted ? "text-white/65" : "text-slate-500")}>{item.label}</span>
+                <span className={"mt-0.5 block truncate text-xs font-bold " + (isCompleted ? "text-white" : "text-ink")}>{item.value}</span>
+              </span>
+            ))}
+          </span>
+        ) : null}
       </button>
     </section>
   );
 }
 
-function getHomeStatusCard(status: HomeSwapStatus, reservationLabel: string) {
+function getHomeStatusCard(status: HomeSwapStatus, reservationLabel: string, swapRequest: SwapRequest | null) {
+  const etaLabel = formatHomeEtaLabel(swapRequest?.tracking?.estimatedArrivalAt);
+  const distanceLabel = formatHomeDistanceLabel(swapRequest?.tracking?.metrics?.crewToPickupMeters);
+
   switch (status) {
     case "reserved":
       return {
         icon: CalendarStatusIcon,
-        title: "수거 예약이 완료됐어요",
-        description: (reservationLabel || "예약 시간") + "에 맞춰 수거가 진행돼요.",
+        badge: "크루 배정 대기",
+        badgeClass: "bg-lgred/10 text-lgred",
+        title: "수거 크루를 찾고 있어요",
+        description: "예약이 접수됐고 가까운 크루에게 요청을 보내고 있어요.",
+        meta: [
+          { label: "예약 시간", value: reservationLabel || "확인 중" },
+          { label: "현재 상태", value: "수락 대기" },
+        ],
       };
     case "pickup":
       return {
         icon: TruckStatusIcon,
-        title: "수거가 진행 중이에요",
-        description: "배정된 수거 크루가 방문을 준비하고 있어요.",
+        badge: "크루 수락 완료",
+        badgeClass: "bg-lgred/10 text-lgred",
+        title: "크루가 수거지로 이동 중이에요",
+        description: "수락한 크루의 위치와 도착 예상 정보를 지도에서 확인할 수 있어요.",
+        meta: [
+          { label: "예상 시간", value: etaLabel },
+          { label: "남은 거리", value: distanceLabel },
+        ],
       };
     case "reviewPending":
       return {
         icon: ClipboardStatusIcon,
+        badge: "수거 후 확인",
+        badgeClass: "bg-slate-100 text-slate-600",
         title: "최종 확인 중",
         description: "수거물 확인과 허브 인수 절차가 완료되면 ThinQ 알림으로 안내해 드려요.",
+        meta: [],
       };
     case "reviewCompleted":
       return {
         icon: BellStatusIcon,
+        badge: "보상 확인 가능",
+        badgeClass: "bg-white/15 text-white/80",
         title: "확인이 완료됐어요",
         description: "최종 감정 결과와 보상 정보를 확인해 보세요.",
+        meta: [],
       };
     case "reReviewPending":
       return {
         icon: ClockStatusIcon,
+        badge: "재검토 진행",
+        badgeClass: "bg-slate-100 text-slate-600",
         title: "재검토 중",
         description: "요청하신 내용을 기준으로 다시 확인하고 있어요.",
+        meta: [],
       };
     case "reReviewCompleted":
       return {
         icon: CheckStatusIcon,
+        badge: "재검토 완료",
+        badgeClass: "bg-white/15 text-white/80",
         title: "재검토가 완료됐어요",
         description: "재검토 결과와 최종 보상 정보를 확인해 보세요.",
+        meta: [],
       };
     default:
       return {
         icon: RecycleStatusIcon,
+        badge: "SwapIt",
+        badgeClass: "bg-lgred/10 text-lgred",
         title: "SwapIt 신청 가능",
         description: "오래된 가전을 보상 크레딧으로 바꿔보세요.",
+        meta: [],
       };
   }
+}
+
+function formatHomeEtaLabel(value?: string | null) {
+  if (!value) return "확인 중";
+
+  const target = new Date(value);
+  if (Number.isNaN(target.getTime())) return "확인 중";
+
+  const minutes = Math.max(0, Math.ceil((target.getTime() - Date.now()) / 60000));
+  if (minutes === 0) return "곧 도착";
+  return `${minutes}분 예상`;
+}
+
+function formatHomeDistanceLabel(meters?: number | null) {
+  if (meters == null) return "확인 중";
+  if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
+  return `${Math.max(1, Math.round(meters))}m`;
 }
 
 function SwapItFeatureScreen(props: {
@@ -1800,6 +2217,7 @@ function SwapItFeatureScreen(props: {
   onBooking: (booking: BookingSelection) => void;
   onComplete: () => void;
   onFinalize: () => void;
+  onCreditIssued: () => void;
   onRequestReReview: () => void;
   onOpenMarket: () => void;
   onReturnHome: () => void;
@@ -1844,7 +2262,7 @@ function SwapItFeatureScreen(props: {
             aria-label="이전 화면으로 돌아가기"
             className={`flex h-9 w-9 items-center justify-center rounded-full shadow-sm ${
               props.step === "intro" ? "bg-white/95 text-lgred" : "bg-white text-ink"
-            }`}
+            } ${props.step === "tracking" ? "invisible" : ""}`}
             onClick={props.onBack}
           >
             <ArrowLeft size={18} />
@@ -1866,9 +2284,6 @@ function SwapItFeatureScreen(props: {
             {props.step === "intro" ? "닫기" : <Home size={16} />}
           </button>
         </div>
-        {(props.step === "ongoing" || props.step === "tracking" || props.step === "credit") ? (
-          <OngoingReservationHeader bookingPurpose={props.bookingPurpose} step={props.step} />
-        ) : null}
       </header>
       ) : null}
 
@@ -1960,7 +2375,6 @@ function SwapItFeatureScreen(props: {
             status={props.homeSwapStatus}
             onChange={props.onChangeReservation}
             onCancel={props.onCancelReservation}
-            onOpenTracking={props.onOpenTracking}
             onOpenCredit={props.onOpenCredit}
           />
         ) : null}
@@ -1977,6 +2391,7 @@ function SwapItFeatureScreen(props: {
             swapRequest={props.swapRequest}
             loading={props.creditLoading}
             onFinalize={props.onFinalize}
+            onCreditIssued={props.onCreditIssued}
             onRequestReReview={props.onRequestReReview}
             onOpenMarket={props.onOpenMarket}
             onReturnHome={props.onReturnHome}
@@ -2130,44 +2545,6 @@ function ConsentToggle({
   );
 }
 
-function OngoingReservationHeader({
-  bookingPurpose,
-  step,
-}: {
-  bookingPurpose: BookingPurpose;
-  step: "ongoing" | "tracking" | "credit";
-}) {
-  const isInstallation = bookingPurpose === "installation";
-  const title =
-    step === "ongoing"
-      ? isInstallation
-        ? "진행 중인 수거 예약"
-        : "진행 중인 예약"
-      : step === "tracking"
-        ? isInstallation
-          ? "진행 중인 예약 · 수거 진행"
-          : "진행 중인 예약 · 수거 진행"
-        : "진행 중인 예약 · 보상 단계";
-  const description =
-    step === "ongoing"
-      ? isInstallation
-        ? "수거 예약 정보와 크루 이동 상태를 이어서 확인할 수 있어요."
-        : "예약 정보와 크루 이동 상태를 이어서 확인할 수 있어요."
-      : step === "tracking"
-        ? isInstallation
-          ? "크루 이동, 기존 제품 수거 진행을 한 화면에서 확인해요."
-          : "크루 이동, 수거 진행, GPS 추적을 한 화면에서 확인해요."
-        : "수거 완료 이후 검수, 최종 보상가, 크레딧 발급 단계를 이어서 확인해요.";
-
-  return (
-    <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-      <p className="text-xs font-bold text-lgred">ONGOING RESERVATION</p>
-      <p className="mt-1 text-[13px] font-bold text-ink">{title}</p>
-      <p className="mt-1 text-[10px] font-medium leading-4 text-slate-500">{description}</p>
-    </div>
-  );
-}
-
 function getContentClassName(step: SwapStep) {
   if (step === "intro") {
     return "phone-scroll relative z-10 flex-1 overflow-y-auto px-0 pb-0";
@@ -2214,9 +2591,6 @@ function SwapItIntro({
             <span>
               <span className="block text-[13px] font-bold text-slate-500">선택한 가전</span>
               <span className="mt-1 block text-[24px] font-bold leading-none text-ink">{selectedLabel}</span>
-            </span>
-            <span className="rounded-full bg-lgred/10 px-3 py-1.5 text-[12px] font-semibold text-lgred">
-              STEP 1
             </span>
           </div>
           <div className="mt-4 grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 pt-4">
@@ -2290,17 +2664,359 @@ function IndianPatternOverlay({ className = "" }: { className?: string }) {
   return <div aria-hidden="true" className={`pointer-events-none absolute inset-0 ${className}`} />;
 }
 
+function ThinQCareScreen() {
+  return (
+    <div className="phone-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pb-3">
+      <section className="px-1 pb-1 pt-2">
+        <p className="text-[13px] font-semibold text-lgred">케어 리포트</p>
+        <h1 className="mt-1 text-[22px] font-bold leading-7 text-ink">6월 리포트</h1>
+        <p className="mt-2 text-[17px] font-semibold leading-6 text-slate-500">우리집 제품 케어</p>
+      </section>
+
+      <CareReportCard>
+        <CareHealthIllustration />
+        <p className="mt-4 text-center text-[15px] font-medium leading-6 text-slate-500">
+          연결된 제품의 상태를 진단하고 문제 발생을 예방할 수 있어요.
+        </p>
+      </CareReportCard>
+
+      <section className="pt-2">
+        <h2 className="px-1 text-[17px] font-semibold leading-6 text-slate-500">제품 에너지 사용량</h2>
+        <CareReportCard className="mt-3">
+          <EnergyBoltIllustration />
+          <p className="mt-4 text-center text-[15px] font-medium leading-6 text-slate-500">
+            지원 제품 또는 파트너사 계정을 연결하면 에너지 사용량을 알 수 있어요.
+          </p>
+          <button
+            className="mx-auto mt-5 flex items-center gap-1 text-[14px] font-semibold text-[#5267dc]"
+            type="button"
+          >
+            자세히 보기
+            <ChevronRight size={18} />
+          </button>
+        </CareReportCard>
+      </section>
+    </div>
+  );
+}
+
+function CareReportCard({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section className={`rounded-[22px] bg-white px-5 py-7 shadow-sm ${className}`}>
+      {children}
+    </section>
+  );
+}
+
+function CareHealthIllustration() {
+  return (
+    <div className="mx-auto flex h-[150px] w-[170px] items-center justify-center" aria-hidden="true">
+      <div className="relative flex h-[118px] w-[118px] items-center justify-center rounded-[36px] bg-[linear-gradient(135deg,#f8fbff,#eef3fb)] shadow-[0_18px_38px_rgba(100,116,139,0.18)] ring-1 ring-slate-100">
+        <div className="absolute -right-5 top-8 flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+          <Service3DIcon type="check" className="h-9 w-9" />
+        </div>
+        <div className="absolute -left-4 bottom-7 flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+          <Service3DIcon type="search" className="h-8 w-8" />
+        </div>
+        <Service3DIcon type="clipboard" className="h-[78px] w-[78px]" />
+      </div>
+    </div>
+  );
+}
+
+function EnergyBoltIllustration() {
+  return (
+    <div className="mx-auto flex h-[150px] w-[160px] items-center justify-center" aria-hidden="true">
+      <div className="relative flex h-[118px] w-[118px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#f7ffe8,#eef7ff)] shadow-[0_18px_38px_rgba(100,116,139,0.18)] ring-1 ring-slate-100">
+        <span className="absolute right-5 top-4 h-3 w-3 rounded-full bg-[#c6f11b]" />
+        <span className="absolute bottom-6 left-5 h-2.5 w-2.5 rounded-full bg-[#91d5ff]" />
+        <div className="flex h-[74px] w-[74px] items-center justify-center rounded-[28px] bg-[linear-gradient(135deg,#eaff18,#a8d90d)] text-[#5b7b09] shadow-[0_14px_26px_rgba(132,175,24,0.24)]">
+          <Zap size={42} fill="currentColor" strokeWidth={2.2} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ThinQMenuScreen() {
+  const productItems = [
+    { title: "스마트 진단", icon: CheckCircle2, iconClassName: "bg-[#ff3b3b] text-white" },
+    { title: "제품 정보와 보증", icon: Info, iconClassName: "bg-[#5277f5] text-white" },
+    { title: "제품 사용설명서", icon: BookOpen, iconClassName: "bg-[#00a99d] text-white" },
+    { title: "LG전자 구독", icon: CalendarDays, iconClassName: "bg-[#f25b4f] text-white" },
+  ];
+  const appItems = [
+    { title: "ThinQ PLAY", icon: PlaySquare, iconClassName: "bg-[#fff1fb] text-[#f0448f]" },
+    { title: "스마트 루틴", icon: RotateCw, iconClassName: "bg-[#f1edff] text-[#7b61ff]" },
+    { title: "ThinQ 활용하기", icon: Compass, iconClassName: "bg-[#f2edff] text-[#916cff]" },
+  ];
+
+  return (
+    <div className="phone-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pb-3">
+      <section className="px-1 pb-1 pt-2">
+        <p className="text-[13px] font-semibold text-lgred">메뉴</p>
+        <h1 className="mt-1 text-[22px] font-bold leading-7 text-ink">필요한 기능을 빠르게 찾아요</h1>
+        <p className="mt-2 text-[13px] font-medium leading-5 text-slate-500">
+          제품 관리, 고객 지원, 앱 활용 메뉴를 한곳에서 확인할 수 있어요.
+        </p>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3">
+        <button className="flex h-[86px] flex-col items-center justify-center rounded-[20px] bg-white text-center shadow-sm" type="button">
+          <User size={25} className="text-[#7b61ff]" fill="currentColor" />
+          <span className="mt-2 text-[15px] font-semibold leading-5 text-ink">마이페이지</span>
+        </button>
+        <button className="flex h-[86px] flex-col items-center justify-center rounded-[20px] bg-white text-center shadow-sm" type="button">
+          <Headphones size={27} className="text-[#ff3636]" />
+          <span className="mt-2 text-[15px] font-semibold leading-5 text-ink">고객 지원</span>
+        </button>
+      </section>
+
+      <section className="grid grid-cols-2 gap-3">
+        <button className="flex items-center gap-3 rounded-[20px] bg-white p-3 text-left shadow-sm" type="button">
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+            <Megaphone size={22} fill="currentColor" />
+            <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-[#ff5a3d]" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[13px] font-semibold text-ink">알림</span>
+            <span className="mt-0.5 block text-[11px] font-medium text-slate-500">새 소식 1건</span>
+          </span>
+        </button>
+        <button className="flex items-center gap-3 rounded-[20px] bg-white p-3 text-left shadow-sm" type="button">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+            <Settings size={22} fill="currentColor" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-[13px] font-semibold text-ink">설정</span>
+            <span className="mt-0.5 block text-[11px] font-medium text-slate-500">앱 관리</span>
+          </span>
+        </button>
+      </section>
+
+      <button className="flex w-full items-center gap-3 rounded-[20px] bg-white p-3 text-left shadow-sm" type="button">
+        <img
+          alt=""
+          className="h-14 w-14 shrink-0 rounded-2xl object-cover"
+          src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=240&q=80"
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-semibold leading-5 text-ink">국가대표가전 국민응원 대축제</span>
+          <span className="mt-0.5 block truncate text-[12px] font-medium leading-4 text-slate-500">
+            베스트샵에서 최대 420만 더블 혜택을 만나요...
+          </span>
+          <span className="mt-1 block text-[11px] font-semibold leading-4 text-lgred">~ 2026. 6. 30.</span>
+        </span>
+      </button>
+
+      <MenuSection title="제품 사용과 관리">
+        {productItems.map((item) => (
+          <MenuListRow key={item.title} icon={item.icon} iconClassName={item.iconClassName} title={item.title} />
+        ))}
+      </MenuSection>
+
+      <MenuSection title="제품 및 앱 활용">
+        {appItems.map((item) => (
+          <MenuListRow key={item.title} icon={item.icon} iconClassName={item.iconClassName} title={item.title} />
+        ))}
+      </MenuSection>
+    </div>
+  );
+}
+
+function MenuSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <h2 className="px-1 text-[13px] font-semibold leading-5 text-slate-500">{title}</h2>
+      <div className="mt-2 overflow-hidden rounded-[20px] bg-white px-4 shadow-sm">{children}</div>
+    </section>
+  );
+}
+
+function MenuListRow({
+  icon: Icon,
+  iconClassName,
+  title,
+}: {
+  icon: LucideIcon;
+  iconClassName: string;
+  title: string;
+}) {
+  return (
+    <button className="flex h-[58px] w-full items-center gap-3 border-b border-slate-100 text-left last:border-b-0" type="button">
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${iconClassName}`}>
+        <Icon size={18} strokeWidth={2.4} />
+      </span>
+      <span className="text-[15px] font-medium leading-5 text-ink">{title}</span>
+    </button>
+  );
+}
+
+function ThinQDevicesScreen({
+  onOpenBenefit,
+}: {
+  onOpenBenefit: (benefit: DeviceBenefit) => void;
+}) {
+  return (
+    <div className="phone-scroll min-h-0 flex-1 overflow-y-auto pb-3">
+      <section className="px-1 pb-1 pt-2">
+        <p className="text-[13px] font-semibold text-lgred">내 디바이스</p>
+        <h1 className="mt-1 text-[22px] font-bold leading-7 text-ink">내가 보유한 가전을 확인해요</h1>
+        <p className="mt-2 text-[13px] font-medium leading-5 text-slate-500">
+          등록된 제품별 AMC 혜택과 케어 권리를 한곳에서 볼 수 있어요.
+        </p>
+      </section>
+
+      <section className="mt-3 rounded-[22px] bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[13px] font-semibold text-slate-500">보유 가전</p>
+            <p className="mt-1 text-[20px] font-bold leading-none text-ink">{ownedDevices.length}대</p>
+          </div>
+          <span className="rounded-full bg-lgred/10 px-3 py-1.5 text-[12px] font-semibold text-lgred">
+            AMC 혜택 {ownedDevices.reduce((sum, device) => sum + device.benefits.length, 0)}개
+          </span>
+        </div>
+      </section>
+
+      <section className="mt-3 space-y-3">
+        {ownedDevices.map((device) => (
+          <article key={device.id} className="rounded-[22px] bg-white p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-gradient-to-br ${applianceTints[device.applianceId]} ring-1 ring-white/80 shadow-[inset_0_2px_6px_rgba(255,255,255,0.85),0_4px_10px_rgba(30,40,70,0.10)]`}
+              >
+                <Appliance3DIcon id={device.applianceId} className="h-9 w-9" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-[15px] font-bold text-ink">{device.label}</p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                    {device.status}
+                  </span>
+                </div>
+                <p className="mt-1 text-[13px] font-semibold leading-5 text-slate-600">{device.model}</p>
+                <p className="mt-1 text-[11px] font-medium text-slate-400">
+                  {device.location} · {device.connectedAt}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <h2 className="mb-2 text-[13px] font-semibold text-ink">보유한 혜택</h2>
+              <div className="grid gap-2">
+                {device.benefits.map((benefit) => (
+                  <button
+                    key={benefit.id}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-left transition active:scale-[0.99]"
+                    onClick={() => onOpenBenefit(benefit)}
+                    type="button"
+                  >
+                    <Service3DIcon type={benefit.iconType} className="h-9 w-9 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-ink">{benefit.title}</span>
+                      <span className="mt-0.5 block text-[11px] font-medium leading-4 text-slate-500">
+                        {benefit.subtitle}
+                      </span>
+                    </span>
+                    <ChevronRight size={18} className="text-slate-400" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </article>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function DeviceBenefitSheet({
+  benefit,
+  onClose,
+}: {
+  benefit: DeviceBenefit;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute inset-0 z-50 flex items-end bg-black/55 backdrop-blur-[1px]" onClick={onClose}>
+      <section
+        className="max-h-[82%] w-full overflow-hidden rounded-t-[28px] bg-white shadow-[0_-18px_44px_rgba(15,23,42,0.24)] animate-[sheetUp_.24s_ease-out]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <p className="text-[11px] font-semibold text-lgred">{benefit.planName}</p>
+            <h2 className="mt-1 text-[18px] font-bold leading-6 text-ink">{benefit.title}</h2>
+          </div>
+          <button
+            aria-label="혜택 상세 닫기"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+            onClick={onClose}
+            type="button"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="phone-scroll max-h-[calc(82vh-80px)] overflow-y-auto px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-lgred/5 p-4">
+            <Service3DIcon type={benefit.iconType} className="h-12 w-12 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-ink">{benefit.deviceLabel}</p>
+              <p className="mt-0.5 text-[12px] font-medium text-slate-500">{benefit.deviceModel}</p>
+              <p className="mt-1 text-[11px] font-semibold text-lgred">{benefit.validUntil}</p>
+            </div>
+          </div>
+
+          <p className="mt-4 text-[14px] font-medium leading-6 text-slate-600">{benefit.detail}</p>
+
+          <div className="mt-4 rounded-2xl bg-slate-50 p-4">
+            <h3 className="text-[13px] font-semibold text-ink">포함된 내용</h3>
+            <div className="mt-3 space-y-2">
+              {benefit.items.map((item) => (
+                <div key={item} className="flex items-center gap-2">
+                  <CheckCircle2 size={16} className="shrink-0 text-lgred" />
+                  <p className="text-[13px] font-medium leading-5 text-slate-600">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button className="mt-4 h-12 w-full rounded-2xl bg-lgred text-[14px] font-bold text-white" type="button">
+            혜택 사용하기
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function DeviceCard({
   applianceId,
   label,
+  onClick,
   status,
 }: {
   applianceId: ApplianceId;
   label: string;
+  onClick?: () => void;
   status: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-[16px] px-3 py-3">
+    <button className="flex w-full items-center gap-3 rounded-[16px] px-1 py-3 text-left" onClick={onClick} type="button">
       <div
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${applianceTints[applianceId]} ring-1 ring-white/80 shadow-[inset_0_2px_6px_rgba(255,255,255,0.85),0_4px_10px_rgba(30,40,70,0.10)]`}
       >
@@ -2314,7 +3030,7 @@ function DeviceCard({
         보기
       </span>
       <ChevronRight size={18} className="text-slate-400" />
-    </div>
+    </button>
   );
 }
 

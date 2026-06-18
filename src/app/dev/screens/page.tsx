@@ -59,8 +59,7 @@ function ConsentScreen() {
     <section className="flex h-full flex-col bg-white p-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold text-[#a50034]">STEP 1. 촬영 전 동의</p>
-          <h2 className="mt-1 text-2xl font-bold text-[#111318]">촬영과 크레딧 산정 동의</h2>
+          <h2 className="text-2xl font-bold text-[#111318]">촬영과 크레딧 산정 동의</h2>
         </div>
         <button className="text-sm font-bold text-slate-500" type="button">닫기</button>
       </div>
@@ -169,7 +168,6 @@ function RecognizingScreen() {
     <section className="flex min-h-full flex-col overflow-hidden bg-[#111318] text-white">
       <div className="flex items-center justify-between px-5 pt-5">
         <div>
-          <p className="text-xs font-semibold text-white/55">STEP 1-2</p>
           <h2 className="mt-1 text-xl font-bold">VLM + OpenAI 분석 중</h2>
         </div>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80">{MOCK.applianceLabel}</span>
@@ -257,7 +255,6 @@ function ReviewScreen() {
     <section className="flex h-full flex-col overflow-y-auto bg-white p-5 pb-0">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs font-semibold text-[#a50034]">STEP 1-3</p>
           <h2 className="mt-1 text-xl font-bold text-[#111318]">AI 인식 결과 확인</h2>
         </div>
         <span className="rounded-full bg-[#a50034]/10 px-3 py-1 text-xs font-bold text-[#a50034]">{MOCK.applianceLabel}</span>
@@ -350,7 +347,6 @@ function AnalyzingScreen() {
     <section className="flex min-h-full flex-col overflow-hidden bg-[#111318] text-white">
       <div className="flex items-center justify-between px-5 pt-5">
         <div>
-          <p className="text-xs font-semibold text-white/55">STEP 2</p>
           <h2 className="mt-1 text-xl font-bold">감정 중</h2>
         </div>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/80">{MOCK.applianceLabel}</span>

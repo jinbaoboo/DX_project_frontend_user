@@ -1,6 +1,5 @@
 import { Calendar3DIcon } from "@/components/Calendar3DIcon";
 import { Service3DIcon } from "@/components/Service3DIcon";
-import { ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import type { BookingPurpose } from "./BookingPanel";
 
@@ -20,7 +19,6 @@ type OngoingReservationPanelProps = {
   status: ReviewStatus;
   onChange: () => void;
   onCancel: () => void;
-  onOpenTracking: () => void;
   onOpenCredit: () => void;
 };
 
@@ -28,29 +26,10 @@ export function OngoingReservationPanel({
   bookingPurpose = "pickup",
   reservationLabel,
   reservationAddress,
-  status,
   onChange,
   onCancel,
-  onOpenTracking,
 }: OngoingReservationPanelProps) {
-  const pickupCompleted =
-    status === "reviewPending" ||
-    status === "reviewCompleted" ||
-    status === "reReviewPending" ||
-    status === "reReviewCompleted";
   const isInstallation = bookingPurpose === "installation";
-
-  const trackingDescription = pickupCompleted
-    ? isInstallation
-      ? "기존 제품 수거가 완료되면 안심처리 상태를 확인할 수 있어요."
-      : "수거와 e-waste 공장 전달까지 완료되어 안심처리 상태를 확인할 수 있어요."
-    : status === "reserved"
-      ? isInstallation
-        ? "예약된 수거 일정 기준으로 크루 배정, 이동, 기존 제품 수거 상태를 확인할 수 있어요."
-        : "예약된 수거 일정 기준으로 크루 배정 및 이동 상태를 확인할 수 있어요."
-      : isInstallation
-        ? "배정된 수거 크루의 이동 상태와 수거 진행 상황을 확인할 수 있어요."
-        : "배정된 수거 크루의 이동 상태와 수거 진행 상황을 확인할 수 있어요.";
 
   return (
     <section className="flex h-full flex-col rounded-[28px] bg-white p-4 shadow-sm">
@@ -60,12 +39,16 @@ export function OngoingReservationPanel({
       </div>
 
       <div className="mt-4 rounded-3xl border border-lgred/15 bg-lgred/5 p-4">
-        <p className="text-xs font-bold text-lgred">{isInstallation ? "수거 예약이 접수됐어요" : "예약이 접수됐어요"}</p>
-        <p className="mt-1 text-[13px] font-medium leading-5 text-slate-600">
-          {isInstallation
-            ? "예약 시간과 위치를 확인하고 기존 제품 수거 진행 상태로 이동할 수 있어요."
-            : "예약 시간과 위치를 확인하고 수거 진행 상태로 이동할 수 있어요."}
+        <p className="text-xs font-bold text-lgred">예약이 완료됐어요</p>
+        <p className="mt-1 text-[15px] font-bold leading-5 text-ink">수거 크루를 찾고있어요</p>
+        <p className="mt-2 text-[13px] font-medium leading-5 text-slate-600">
+          가까운 크루에게 배차 알림을 보내고 있어요. 크루가 수락하면 위치와 남은 시간을 확인할 수 있어요.
         </p>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <MatchingStep active label="예약 완료" />
+          <MatchingStep active label="크루 찾는 중" />
+          <MatchingStep label="이동 시작" />
+        </div>
       </div>
 
       <div className="mt-4 space-y-3">
@@ -76,27 +59,6 @@ export function OngoingReservationPanel({
           description={
             reservationAddress || (isInstallation ? "입력한 수거 주소를 불러오고 있어요." : "입력한 수거 주소를 불러오고 있어요.")
           }
-        />
-      </div>
-
-      <div className="mt-4">
-        <StageCard
-          icon={<Service3DIcon type="truck" className="h-10 w-10" />}
-          stepLabel="STEP 4"
-          title={pickupCompleted ? (isInstallation ? "수거가 완료됐어요" : "수거 및 처리가 완료됐어요") : "크루 이동을 확인해요"}
-          description={trackingDescription}
-          buttonLabel={
-            pickupCompleted
-              ? isInstallation
-                ? "수거가 완료됐어요"
-                : "수거 및 처리가 완료됐어요"
-              : status === "pickup"
-                ? "이동 중인 크루를 확인할게요"
-                : isInstallation
-                  ? "수거 진행을 확인할게요"
-                  : "수거 진행을 확인할게요"
-          }
-          onClick={onOpenTracking}
         />
       </div>
 
@@ -120,45 +82,11 @@ export function OngoingReservationPanel({
   );
 }
 
-function StageCard({
-  icon,
-  stepLabel,
-  title,
-  description,
-  buttonLabel,
-  disabled = false,
-  onClick,
-}: {
-  icon: ReactNode;
-  stepLabel: string;
-  title: string;
-  description: string;
-  buttonLabel: string;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
+function MatchingStep({ active = false, label }: { active?: boolean; label: string }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center">
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold text-lgred">{stepLabel}</p>
-          <p className="mt-1 text-[15px] font-bold leading-5 text-ink">{title}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
-        </div>
-      </div>
-
-      <button
-        className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-lgred text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-        disabled={disabled}
-        onClick={onClick}
-        type="button"
-      >
-        {buttonLabel}
-        {!disabled ? <ChevronRight size={16} /> : null}
-      </button>
+    <div className="rounded-2xl bg-white/80 px-2 py-2 text-center ring-1 ring-white">
+      <span className={`mx-auto block h-2 w-2 rounded-full ${active ? "bg-lgred" : "bg-slate-300"}`} />
+      <p className={`mt-1 text-[10px] font-semibold leading-4 ${active ? "text-lgred" : "text-slate-400"}`}>{label}</p>
     </div>
   );
 }
