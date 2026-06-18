@@ -29,7 +29,7 @@ function resolveApiBaseUrl() {
     return trimTrailingSlash(publicBaseUrl);
   }
 
-  return "http://127.0.0.1:8081";
+  return "http://127.0.0.1:8082";
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -53,6 +53,7 @@ async function readErrorMessage(response: Response) {
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const method = options?.method ?? "GET";
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: {
@@ -62,7 +63,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(await readErrorMessage(response));
+    const message = await readErrorMessage(response);
+    throw new Error(`[${method} ${path}] ${response.status} ${message}`);
   }
 
   return response.json() as Promise<T>;
@@ -73,6 +75,8 @@ export type PickupLocationPayload = {
   detailAddress?: string;
   pickupLat: number;
   pickupLng: number;
+  pickupAccuracyMeters?: number;
+  pickupSource?: string;
 };
 
 export type CapturePayload = {
@@ -171,6 +175,28 @@ export function createSwapRequestForUser(
   });
 }
 
+export function createInstantCallForUser(
+  user: Pick<DemoUser, "userId" | "userName" | "phoneNumber"> | { userName: string; phoneNumber: string },
+  applianceType: string,
+  pickup: PickupLocationPayload,
+) {
+  return request<SwapRequest>("/api/swap-requests/instant-call", {
+    method: "POST",
+    body: JSON.stringify({
+      userId: "userId" in user ? user.userId : undefined,
+      userName: user.userName,
+      phoneNumber: user.phoneNumber,
+      applianceType,
+      address: pickup.address,
+      detailAddress: pickup.detailAddress ?? "",
+      pickupLat: pickup.pickupLat,
+      pickupLng: pickup.pickupLng,
+      pickupAccuracyMeters: pickup.pickupAccuracyMeters,
+      pickupSource: pickup.pickupSource,
+    }),
+  });
+}
+
 export function analyzePhoto(id: number, payload: CapturePayload) {
   return request<SwapRequest>(`/api/swap-requests/${id}/photos`, {
     method: "POST",
@@ -208,6 +234,8 @@ export function confirmBooking(id: number, booking: BookingPayload) {
       detailAddress: booking.detailAddress ?? "",
       pickupLat: booking.pickupLat,
       pickupLng: booking.pickupLng,
+      pickupAccuracyMeters: booking.pickupAccuracyMeters,
+      pickupSource: booking.pickupSource,
     }),
   });
 }
@@ -260,7 +288,15 @@ export function requestInstantCall(id: number, pickup: PickupLocationPayload) {
       detailAddress: pickup.detailAddress ?? "",
       pickupLat: pickup.pickupLat,
       pickupLng: pickup.pickupLng,
+      pickupAccuracyMeters: pickup.pickupAccuracyMeters,
+      pickupSource: pickup.pickupSource,
     }),
+  });
+}
+
+export function cancelSwapRequest(id: number) {
+  return request<SwapRequest>(`/api/swap-requests/${id}/cancel`, {
+    method: "POST",
   });
 }
 
