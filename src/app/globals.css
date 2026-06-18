@@ -20,8 +20,11 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 248, 251, 0.96)),
     #f7f8fb;
   font-family:
-    Arial,
-    Helvetica,
+    "Pretendard Variable",
+    "Pretendard",
+    "Apple SD Gothic Neo",
+    "Noto Sans KR",
+    "Malgun Gothic",
     sans-serif;
 }
 

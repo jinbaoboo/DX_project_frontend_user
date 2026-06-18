@@ -1100,19 +1100,6 @@ function ReviewView({
         <InfoInput label="외관 상태" value={recognizedInfo.exteriorCondition} onChange={(value) => onChange({ ...recognizedInfo, exteriorCondition: value })} />
       </div>
 
-      <div className="mt-4 rounded-2xl bg-cloud p-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500">인식 신뢰도</span>
-          <strong className="text-sm font-bold text-lgred">{recognizedInfo.confidence}%</strong>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
-          <span
-            className="block h-full rounded-full bg-lgred"
-            style={{ width: `${recognizedInfo.confidence}%` }}
-          />
-        </div>
-      </div>
-
       {credit !== null && (
         <div className="mt-4 overflow-hidden rounded-3xl bg-lgred">
           {/* 최종 크레딧 */}

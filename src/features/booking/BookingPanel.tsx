@@ -107,9 +107,9 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
   pickup: {
     title: "수거 예약을 진행해요",
     description:
-      "시간 예약은 날짜와 시간을 직접 선택하고, 바로콜은 현재 위치 또는 직접 입력한 주소를 기준으로 가장 가까운 수거 크루를 찾아요.",
-    scheduleModeLabel: "시간 예약",
-    callModeLabel: "바로콜",
+      "시간 예약은 날짜와 시간을 직접 선택하고, 바로콜은 현재 위치 또는 직접 입력한 주소를 기준으로 바로 접수할 수 있어요.",
+    scheduleModeLabel: "수거 시간 예약",
+    callModeLabel: "빠른 수거 요청",
     dateTitle: "수거 날짜를 선택해요",
     datePickerLabel: "달력에서 수거 날짜를 선택해요",
     timeTitle: "수거 시간을 선택해요",
@@ -124,7 +124,7 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     manualRequiredError: "수거 위치를 직접 입력해 주세요.",
     addressNotFoundError: "입력한 주소를 찾지 못했어요. 주소를 다시 확인해 주세요.",
     coordinateError: "수거 위치 좌표를 확인하지 못했어요. 다시 시도해 주세요.",
-    callReservedAt: "바로콜 접수",
+    callReservedAt: "빠른 수거 요청 접수",
     currentDetailLabel: "현재 위치",
     mapDescription: "지도에는 현재 선택된 수거 위치가 표시돼요.",
     currentLocationEyebrow: "내 위치 확인",
@@ -132,9 +132,9 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     detailHint: "필요하면 상세 위치를 추가해 주세요.",
     detailPlaceholder: "예: 건물 앞, 지하주차장 입구",
     refreshLocationLabel: "현재 위치를 다시 확인할게요",
-    matchingLabel: "근처 수거 크루 찾는 중...",
-    callLoadingLabel: "바로콜 접수 중...",
-    callSubmitLabel: "근처 수거 크루를 찾을게요",
+    matchingLabel: "빠른 수거 요청 접수 중...",
+    callLoadingLabel: "빠른 수거 요청 접수 중...",
+    callSubmitLabel: "바로콜 예약하기",
     mapAdjustHint: "GPS가 어긋나면 지도에서 실제 수거 위치를 눌러 보정하세요.",
     mapPinLabel: "수거 위치",
     manualTitle: "수거 위치를 직접 입력해요",
@@ -146,55 +146,62 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     manualFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 주소를 직접 입력해 주세요.",
   },
   installation: {
-    title: "설치 예약을 진행해요",
+    title: "수거 예약을 진행해요",
     description:
-      "새 LG 제품 설치 일정을 선택하면 기존 제품 수거도 같은 방문 흐름으로 함께 진행해요.",
-    notice: "설치 기사 방문 시 새 제품 설치와 기존 제품 수거를 동시에 진행해요.",
-    scheduleModeLabel: "설치 시간 예약",
-    callModeLabel: "빠른 설치 요청",
-    dateTitle: "설치 날짜를 선택해요",
-    datePickerLabel: "달력에서 설치 날짜를 선택해요",
-    timeTitle: "설치 시간을 선택해요",
-    timeDescription: "설치 가능 시간만 표시돼요. 선택한 시간에 새 제품 설치와 기존 제품 수거가 함께 진행돼요.",
+      "교체할 제품의 수거 날짜와 시간을 선택하고, 빠른 요청으로 바로 접수할 수도 있어요.",
+    notice: "새 제품 설치가 함께 있는 경우에도 수거 예약 기준으로 동일하게 접수돼요.",
+    scheduleModeLabel: "수거 시간 예약",
+    callModeLabel: "빠른 수거 요청",
+    dateTitle: "수거 날짜를 선택해요",
+    datePickerLabel: "달력에서 수거 날짜를 선택해요",
+    timeTitle: "수거 시간을 선택해요",
+    timeDescription: "수거 가능한 시간만 표시돼요. 선택한 시간에 수거 예약이 진행돼요.",
     unavailableTimeLabel: "예약 마감",
-    scheduleLoadingLabel: "설치 예약 접수 중...",
-    scheduleSubmitLabel: "설치 예약을 요청할게요",
-    addressMapFallback: "설치 위치를 검색해 주세요",
+    scheduleLoadingLabel: "수거 예약 접수 중...",
+    scheduleSubmitLabel: "수거 예약을 요청할게요",
+    addressMapFallback: "수거 위치를 검색해 주세요",
     locationPermissionError:
-      "현재 접속 환경에서는 GPS 사용이 제한되어 있어요. HTTPS 환경에서 위치 권한을 허용하거나 설치 위치를 직접 입력해 주세요.",
-    locationFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 설치 위치를 직접 입력해 주세요.",
-    manualRequiredError: "설치 위치를 직접 입력해 주세요.",
+      "현재 접속 환경에서는 GPS 사용이 제한되어 있어요. HTTPS 환경에서 위치 권한을 허용하거나 수거 위치를 직접 입력해 주세요.",
+    locationFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 수거 위치를 직접 입력해 주세요.",
+    manualRequiredError: "수거 위치를 직접 입력해 주세요.",
     addressNotFoundError: "입력한 주소를 찾지 못했어요. 주소를 다시 확인해 주세요.",
-    coordinateError: "설치 위치 좌표를 확인하지 못했어요. 다시 시도해 주세요.",
-    callReservedAt: "빠른 설치 요청 접수",
+    coordinateError: "수거 위치 좌표를 확인하지 못했어요. 다시 시도해 주세요.",
+    callReservedAt: "빠른 수거 요청 접수",
     currentDetailLabel: "현재 위치",
-    mapDescription: "지도에는 현재 선택된 설치 위치가 표시돼요. 이 위치에서 설치와 기존 제품 수거가 함께 진행돼요.",
-    currentLocationEyebrow: "설치 위치 확인",
-    currentAddressFallback: "설치 위치를 확인해 주세요",
-    detailHint: "엘리베이터, 주차, 기존 제품 위치처럼 설치와 수거에 필요한 정보를 추가해 주세요.",
+    mapDescription: "지도에는 현재 선택된 수거 위치가 표시돼요.",
+    currentLocationEyebrow: "수거 위치 확인",
+    currentAddressFallback: "수거 위치를 확인해 주세요",
+    detailHint: "엘리베이터, 주차, 기존 제품 위치처럼 수거에 필요한 정보를 추가해 주세요.",
     detailPlaceholder: "예: 엘리베이터 있음, 기존 세탁기 다용도실",
     refreshLocationLabel: "현재 위치를 다시 확인할게요",
-    matchingLabel: "근처 설치 크루 찾는 중...",
-    callLoadingLabel: "빠른 설치 요청 접수 중...",
-    callSubmitLabel: "근처 설치 크루를 찾을게요",
-    mapAdjustHint: "GPS가 어긋나면 지도에서 실제 설치 위치를 눌러 보정하세요.",
-    mapPinLabel: "설치 위치",
-    manualTitle: "설치 위치를 직접 입력해요",
-    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 설치 위치를 지정할 수 있어요.",
+    matchingLabel: "빠른 수거 요청 접수 중...",
+    callLoadingLabel: "빠른 수거 요청 접수 중...",
+    callSubmitLabel: "바로콜 예약하기",
+    mapAdjustHint: "GPS가 어긋나면 지도에서 실제 수거 위치를 눌러 보정하세요.",
+    mapPinLabel: "수거 위치",
+    manualTitle: "수거 위치를 직접 입력해요",
+    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 수거 위치를 지정할 수 있어요.",
     manualButtonLabel: "현재 위치로 지정할게요",
     manualAddressPlaceholder: "서울특별시 중구 세종대로 110",
     manualDetailPlaceholder: "상세 주소를 입력해주세요",
     manualSecureError: "현재 위치는 HTTPS 또는 localhost 환경에서만 사용할 수 있어요.",
-    manualFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 설치 주소를 직접 입력해 주세요.",
+    manualFetchError: "현재 위치를 가져오지 못했어요. 위치 권한을 허용하거나 수거 주소를 직접 입력해 주세요.",
   },
 };
 
-const timeSlots = Array.from({ length: 55 }, (_, index) => {
-  const totalMinutes = 9 * 60 + index * 10;
+const timeSlots = Array.from({ length: 19 }, (_, index) => {
+  const totalMinutes = 9 * 60 + index * 30;
   const hour = Math.floor(totalMinutes / 60);
   const minute = totalMinutes % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 });
+
+function isPastTimeSlot(date: string, time: string) {
+  if (!date || !time) return false;
+  const target = new Date(`${date}T${time}:00`);
+  if (Number.isNaN(target.getTime())) return false;
+  return target.getTime() < Date.now();
+}
 
 function todayString() {
   const today = new Date();
@@ -474,7 +481,7 @@ function ScheduleBooking({
     [availability],
   );
   const selectedSlot = availabilityByTime.get(selectedTime);
-  const selectedTimeUnavailable = selectedSlot ? !selectedSlot.available : false;
+  const selectedTimeUnavailable = selectedSlot ? !selectedSlot.available || isPastTimeSlot(selectedDate, selectedTime) : false;
 
   return (
     <div>
@@ -506,7 +513,7 @@ function ScheduleBooking({
         <Calendar3DIcon className="h-9 w-9 shrink-0" />
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-bold text-ink">
-            {hideManualHeader ? "설치 희망 시간 선택" : "수거 희망 시간 선택"}
+            수거 희망 시간 선택
           </span>
           <span className="mt-1 block truncate text-xs font-semibold text-slate-500">
             {formatDateLabel(selectedDate)} · {selectedTime}
@@ -589,10 +596,11 @@ function ScheduleTimeSheet({
     (_, index) => index + 1,
   );
   const hours = Array.from(new Set(timeSlots.map((time) => time.slice(0, 2))));
-  const minutes = ["00", "10", "20", "30", "40", "50"];
+  const minutes = ["00", "30"];
 
   const isTimeUnavailable = (time: string) => {
     if (!timeSlots.includes(time)) return true;
+    if (isPastTimeSlot(selectedDate, time)) return true;
     const minute = Number(time.slice(3, 5));
     const availabilityMinute = minute < 30 ? "00" : "30";
     const availabilityKey = `${time.slice(0, 2)}:${availabilityMinute}`;
@@ -1314,7 +1322,7 @@ function ManualAddressEditor({
   };
 
   return (
-    <div className="mt-4 rounded-3xl bg-slate-50 p-4">
+    <div className="relative z-20 mt-4 overflow-visible rounded-3xl bg-slate-50 p-4">
       {!hideHeader ? (
         <div className="mb-3 flex items-center gap-3">
           <Service3DIcon type="search" className="h-10 w-10 shrink-0" />
@@ -1359,7 +1367,7 @@ function ManualAddressEditor({
       ) : null}
 
       {suggestions.length > 0 ? (
-        <div className="mt-3 max-h-36 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="relative z-30 mt-3 max-h-48 overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.14)]">
           {suggestions.map((suggestion) => (
             <button
               key={`${suggestion.lat}-${suggestion.lon}-${suggestion.display_name}`}

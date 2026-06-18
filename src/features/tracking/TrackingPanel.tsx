@@ -5,7 +5,7 @@ import { getTracking, submitCrewReview } from "@/lib/api";
 import type { SwapRequest } from "@/types/swap";
 import { Star } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 type TrackingPanelProps = {
   swapRequest: SwapRequest | null;
@@ -44,6 +44,7 @@ type TrackingViewModel = {
   routeDurationLabel: string;
   routeDistanceMeters: number | null;
   routePath: Coordinates[];
+  routeDurationLabel: string;
   events: {
     eventType: string;
     message: string;
@@ -59,15 +60,18 @@ type TrackingViewModel = {
   events: { eventType: string; message: string; createdAt: string }[];
 };
 
-type RouteMode = "car" | "walk";
-
 const KakaoCanvasMap = dynamic(
   () => import("@/components/maps/KakaoCanvasMap").then((module) => module.KakaoCanvasMap),
   { ssr: false },
 );
 
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY?.trim() ?? "";
+const MUHAMMAD_PROFILE_PHOTO = "/crew-muhammad.png";
 
+function normalizeCrewPhoto(name?: string | null, photoUrl?: string | null) {
+  if (name?.trim() === "무함마드") {
+    return MUHAMMAD_PROFILE_PHOTO;
+  }
 const progressSteps = [
   { key: "REQUESTED", label: "요청 접수" },
   { key: "ASSIGNED", label: "크루 배정" },
@@ -115,9 +119,7 @@ function formatWalkDuration(distanceMeters?: number | null) {
   return `${minutes}분`;
 }
 
-function formatCalories(distanceMeters?: number | null) {
-  if (distanceMeters == null) return "-";
-  return `${Math.max(1, Math.round(distanceMeters * 0.044))}kcal`;
+  return photoUrl?.trim() || MUHAMMAD_PROFILE_PHOTO;
 }
 
 function minutesUntil(value?: string | null) {
@@ -149,7 +151,7 @@ function deriveStatus(request: SwapRequest): PickupTrackingStatus {
 function titleFor(status: PickupTrackingStatus) {
   switch (status) {
     case "crew_assigned":
-      return "수거 크루가 배정됐어요";
+      return "수거 크루가 배정되었어요";
     case "en_route_pickup":
       return "크루가 수거지로 이동 중이에요";
     case "arrived":
@@ -157,7 +159,7 @@ function titleFor(status: PickupTrackingStatus) {
     case "en_route_hub":
       return "수거 후 처리 허브로 이동 중이에요";
     case "delivered_to_hub":
-      return "e-waste 공장 전달이 완료됐어요";
+      return "e-waste 공장 전달이 완료되었어요";
     default:
       return "가까운 수거 크루를 찾고 있어요";
   }
@@ -166,42 +168,18 @@ function titleFor(status: PickupTrackingStatus) {
 function subtitleFor(status: PickupTrackingStatus) {
   switch (status) {
     case "crew_assigned":
-      return "배정된 크루의 현재 위치와 프로필을 바로 확인할 수 있어요.";
+      return "배정된 크루의 현재 위치와 이동 정보를 바로 확인할 수 있어요.";
     case "en_route_pickup":
-      return "실시간 이동 경로와 예상 도착 시간을 확인할 수 있어요.";
+      return "실시간으로 크루의 이동 경로와 예상 도착 시간을 확인할 수 있어요.";
     case "arrived":
       return "문앞 도착 후 실물 확인과 수거가 진행됩니다.";
     case "en_route_hub":
       return "수거 후 처리 허브까지의 이동 상황을 계속 확인할 수 있어요.";
     case "delivered_to_hub":
-      return "수거와 처리 단계가 완료되어 보상 확인 단계로 이동할 수 있어요.";
+      return "수거와 처리 단계가 완료되어 다음 단계로 이동할 수 있어요.";
     default:
       return "매칭 점수가 높은 크루에게 우선 배차 알림을 보내고 있어요.";
   }
-}
-
-function progressIndex(status: PickupTrackingStatus) {
-  switch (status) {
-    case "crew_assigned":
-      return 1;
-    case "en_route_pickup":
-      return 2;
-    case "arrived":
-    case "en_route_hub":
-      return 3;
-    case "delivered_to_hub":
-      return 4;
-    default:
-      return 0;
-  }
-}
-
-function isNotFoundApiError(error: unknown) {
-  return error instanceof Error && /not found|404/i.test(error.message);
-}
-
-function kakaoWalkRouteUrl(origin: Coordinates, destination: Coordinates) {
-  return `https://map.kakao.com/link/by/walk/crew,${origin.lat},${origin.lng}/pickup,${destination.lat},${destination.lng}`;
 }
 
 function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
@@ -259,7 +237,7 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
     crewProfile: request.crewProfile
       ? {
           name: request.crewProfile.name,
-          photoUrl: request.crewProfile.photoUrl,
+          photoUrl: normalizeCrewPhoto(request.crewProfile.name, request.crewProfile.photoUrl),
           rating: request.crewProfile.rating,
           phone: "+82-10-0000-0000",
         }
@@ -278,6 +256,7 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
 
   useEffect(() => {
     setLiveRequest(swapRequest);
@@ -394,50 +373,45 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
     }
   };
 
-  return (
-    <section className="overflow-hidden rounded-[28px] bg-white shadow-sm">
-      <div className="bg-[linear-gradient(135deg,#fff5f8,#ffffff_55%,#f8fafc)] p-4">
-        <div>
-          <div className="min-w-0">
-            <span className="inline-flex rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
-              이동 중인 크루 확인
-            </span>
-            <h2 className="mt-4 whitespace-nowrap text-[18px] font-bold leading-6 text-ink">{viewModel.title}</h2>
-            <p className="mt-2 text-[13px] font-medium leading-5 text-slate-500">{viewModel.subtitle}</p>
-          </div>
-        </div>
-      </div>
+  if (!isDelivered) {
+    return (
+      <section className="rounded-[28px] bg-white p-5 shadow-sm">
+        <span className="inline-flex rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
+          이동 중인 크루 확인
+        </span>
+        <h2 className="mt-4 text-[20px] font-black leading-[1.28] text-ink">{viewModel.title}</h2>
 
-      <div className="px-4 pb-4">
-        <div className="-mt-2 rounded-[26px] border border-[#f1d7df] bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
+        <div className="mt-5 overflow-hidden rounded-[24px] border border-[#f1d7df] bg-white">
+          <div className="flex items-center justify-between gap-4 px-4 py-4">
             <div className="flex items-center gap-3">
               {viewModel.crewProfile ? (
                 <img
                   alt={viewModel.crewProfile.name}
-                  className="h-14 w-14 rounded-2xl object-cover"
+                  className="h-16 w-16 rounded-[18px] object-cover"
                   src={viewModel.crewProfile.photoUrl}
                 />
               ) : (
-                <Service3DIcon type="truck" className="h-14 w-14 shrink-0" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-[18px] bg-slate-100">
+                  <Service3DIcon type="truck" className="h-12 w-12" />
+                </div>
               )}
+
               <div>
-                <p className="text-xs font-bold text-lgred">배정 크루</p>
-                <p className="text-[15px] font-bold leading-5 text-ink">
-                  {viewModel.crewProfile?.name ?? "배정 대기 중"}
-                </p>
-                <div className="mt-1 flex items-center gap-1 text-xs font-medium text-slate-500">
-                  <Star size={12} className="fill-current text-[#ffb800]" />
-                  {viewModel.crewProfile ? viewModel.crewProfile.rating.toFixed(1) : "-"}
+                <p className="text-xs font-black text-lgred">배정 크루</p>
+                <p className="mt-1 text-[15px] font-black text-ink">{viewModel.crewProfile?.name ?? "무함마드"}</p>
+                <div className="mt-1 flex items-center gap-1 text-sm font-semibold text-slate-500">
+                  <Star size={13} className="fill-current text-[#ffb800]" />
+                  {viewModel.crewProfile ? viewModel.crewProfile.rating.toFixed(1) : "4.9"}
                 </div>
               </div>
             </div>
-            <div className="flex h-11 shrink-0 items-center rounded-2xl bg-lgred/10 px-4 text-[13px] font-bold text-lgred ring-1 ring-lgred/15">
+
+            <div className="shrink-0 rounded-full bg-[#fff1f4] px-4 py-3 text-[15px] font-black text-lgred">
               {viewModel.etaLabel}
             </div>
           </div>
 
-          <TrackingMap
+          <SimpleTrackingMap
             crewLocation={viewModel.crewLocation}
             pickupLocation={viewModel.pickupLocation}
             processingCenter={viewModel.processingCenter}
@@ -445,167 +419,109 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
             routeDistanceMeters={viewModel.routeDistanceMeters}
             routeDurationLabel={viewModel.routeDurationLabel}
             routePath={viewModel.routePath}
-            status={viewModel.status}
+            routeDurationLabel={viewModel.routeDurationLabel}
+            routeTarget={activeRouteTarget}
           />
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <InfoCard
-              icon={<Service3DIcon type="navigation" className="h-9 w-9" />}
-              title="크루 현재 위치"
-              value={viewModel.crewAddress}
-              caption={`수거지까지 ${viewModel.pickupDistanceLabel} · ${viewModel.locationMessage}`}
-            />
-            <InfoCard
-              icon={<Service3DIcon type="location" className="h-9 w-9" />}
-              title="수거 위치"
-              value={viewModel.pickupAddress}
-              caption={`크루와 거리 ${viewModel.pickupDistanceLabel}`}
-            />
-            <InfoCard
-              icon={<Service3DIcon type="truck" className="h-9 w-9" />}
-              title="예상 소요 시간"
-              value={viewModel.routeDurationLabel}
-              caption={`현재 경로 거리 ${viewModel.routeDistanceLabel}`}
-            />
-            <InfoCard
-              icon={<Service3DIcon type="warehouse" className="h-9 w-9" />}
-              title="처리 허브"
-              value={viewModel.processingCenter?.label ?? "배정 후 안내"}
-              caption={`크루와 거리 ${viewModel.hubDistanceLabel}`}
-            />
+          <div className="flex items-center justify-center gap-5 border-t border-slate-100 px-4 py-4 text-xs font-bold text-slate-600">
+            <LegendDot colorClass="bg-[#2563eb]" label="수거 위치" />
+            <LegendDot colorClass="bg-[#dc2626]" label="크루 현재 위치" />
+            <LegendDot colorClass="bg-[#16a34a]" label="처리 허브" />
           </div>
         </div>
 
-        <div className="mt-4 rounded-[26px] border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-[13px] font-bold text-ink">
-            <Service3DIcon type="check" className="h-7 w-7 shrink-0" />
-            수거 진행 상태
-          </div>
-          <div className="mt-4 space-y-4">
-            {progressSteps.map((step, index) => {
-              const active = index <= currentStepIndex;
-              const event = viewModel.events[index];
+        {error ? (
+          <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-700">{error}</p>
+        ) : null}
 
-              return (
-                <div key={step.key} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <span
-                      className={`h-4 w-4 rounded-full border-4 ${
-                        active ? "border-lgred bg-lgred" : "border-slate-300 bg-white"
-                      }`}
-                    />
-                    {index < progressSteps.length - 1 ? (
-                      <span className={`mt-1 h-10 w-[2px] ${active ? "bg-lgred/50" : "bg-slate-200"}`} />
-                    ) : null}
-                  </div>
-                  <div className="flex-1 pb-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <p
-                        className={`text-[14px] leading-5 ${
-                          active ? "font-bold text-ink" : "font-semibold text-slate-500"
-                        }`}
-                      >
-                        {step.label}
-                      </p>
-                      <span className="text-xs font-medium text-slate-500">
-                        {formatDateTime(event?.createdAt ?? null)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[13px] font-medium leading-5 text-slate-500">
-                      {event?.message ?? defaultEventMessage(step.key)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+        <button
+          className="mt-5 h-14 w-full rounded-[18px] bg-lgred text-base font-black text-white shadow-[0_14px_26px_rgba(166,15,59,0.22)]"
+          onClick={() => setAcknowledged(true)}
+          type="button"
+        >
+          {acknowledged ? "확인했어요" : "확인"}
+        </button>
+      </section>
+    );
+  }
 
-          {error ? (
-            <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-700">
-              {error}
-            </p>
-          ) : null}
+  return (
+    <section className="overflow-hidden rounded-[28px] bg-white shadow-sm">
+      <div className="bg-[linear-gradient(135deg,#fff5f8,#ffffff_55%,#f8fafc)] p-5">
+        <span className="inline-flex rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
+          수거 및 처리 완료
+        </span>
+        <h2 className="mt-4 text-[28px] font-black leading-[1.28] text-ink">e-waste 공장 전달이 완료되었어요</h2>
+        <p className="mt-2 text-[15px] font-medium leading-6 text-slate-500">
+          크루 평점을 남기고 다음 단계로 이동할 수 있어요.
+        </p>
+      </div>
 
-          {viewModel.status === "delivered_to_hub" ? (
-            <div className="mt-4 rounded-[24px] border border-[#f1d7df] bg-[#fff7f9] p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[12px] font-black text-lgred">크루 평점</p>
-                  <p className="mt-1 text-[15px] font-bold text-ink">
-                    {viewModel.crewProfile?.name ?? "담당 크루"}님은 어떠셨나요?
-                  </p>
-                </div>
-                {hasSubmittedReview ? (
-                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600">
-                    제출 완료
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="mt-4 flex items-center gap-2">
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <button
-                    key={value}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-white ring-1 ring-slate-200 transition"
-                    disabled={reviewSubmitting}
-                    onClick={() => setReviewRating(value)}
-                    type="button"
-                  >
-                    <Star
-                      size={20}
-                      className={value <= reviewRating ? "fill-[#ffb800] text-[#ffb800]" : "text-slate-300"}
-                    />
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                className="mt-4 h-24 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] font-medium text-ink outline-none placeholder:text-slate-400"
-                disabled={reviewSubmitting}
-                maxLength={120}
-                onChange={(event) => setReviewComment(event.target.value)}
-                placeholder="크루의 시간 준수, 수거 진행 방식에 대한 후기를 남겨 주세요."
-                value={reviewComment}
-              />
-
-              {reviewError ? (
-                <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-xs font-bold leading-5 text-red-700">
-                  {reviewError}
-                </p>
-              ) : null}
-
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <button
-                  className="h-12 rounded-2xl border border-slate-200 bg-white text-[13px] font-bold text-slate-700"
-                  onClick={onNext}
-                  type="button"
-                >
-                  보상 확인으로 이동
-                </button>
-                <button
-                  className="h-12 rounded-2xl bg-lgred text-[13px] font-bold text-white disabled:bg-slate-300"
-                  disabled={reviewSubmitting}
-                  onClick={() => void handleSubmitReview()}
-                  type="button"
-                >
-                  {reviewSubmitting ? "등록 중..." : hasSubmittedReview ? "평점 다시 등록" : "평점 남기기"}
-                </button>
-              </div>
+      <div className="px-5 pb-5">
+        <div className="-mt-2 rounded-[26px] border border-[#f1d7df] bg-[#fff7f9] p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[12px] font-black text-lgred">크루 평점</p>
+              <p className="mt-1 text-[15px] font-bold text-ink">
+                {viewModel.crewProfile?.name ?? "담당 크루"}는 어떠셨나요?
+              </p>
             </div>
-          ) : null}
-        </div>
+            {hasSubmittedReview ? (
+              <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600">제출 완료</span>
+            ) : null}
+          </div>
 
-        {nextDestination ? null : (
-          <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
-            지도를 표시하려면 수거지 좌표가 필요합니다.
-          </p>
-        )}
+          <div className="mt-4 flex items-center gap-2">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button
+                key={value}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white ring-1 ring-slate-200 transition"
+                disabled={reviewSubmitting}
+                onClick={() => setReviewRating(value)}
+                type="button"
+              >
+                <Star size={20} className={value <= reviewRating ? "fill-[#ffb800] text-[#ffb800]" : "text-slate-300"} />
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            className="mt-4 h-24 w-full resize-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] font-medium text-ink outline-none placeholder:text-slate-400"
+            disabled={reviewSubmitting}
+            maxLength={120}
+            onChange={(event) => setReviewComment(event.target.value)}
+            placeholder="크루의 시간 준수, 수거 진행 방식 등을 짧게 남겨 주세요."
+            value={reviewComment}
+          />
+
+          {reviewError ? (
+            <p className="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-xs font-bold leading-5 text-red-700">{reviewError}</p>
+          ) : null}
+
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button
+              className="h-12 rounded-2xl border border-slate-200 bg-white text-[13px] font-bold text-slate-700"
+              onClick={onNext}
+              type="button"
+            >
+              보상 확인으로 이동
+            </button>
+            <button
+              className="h-12 rounded-2xl bg-lgred text-[13px] font-bold text-white disabled:bg-slate-300"
+              disabled={reviewSubmitting}
+              onClick={() => void handleSubmitReview()}
+              type="button"
+            >
+              {reviewSubmitting ? "등록 중..." : hasSubmittedReview ? "평점 다시 등록" : "평점 남기기"}
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );
 }
 
-function TrackingMap({
+function SimpleTrackingMap({
   crewLocation,
   pickupLocation,
   processingCenter,
@@ -613,7 +529,8 @@ function TrackingMap({
   routeDistanceMeters,
   routeDurationLabel,
   routePath,
-  status,
+  routeDurationLabel,
+  routeTarget,
 }: {
   crewLocation: Coordinates | null;
   pickupLocation: Coordinates;
@@ -622,17 +539,10 @@ function TrackingMap({
   routeDistanceMeters: number | null;
   routeDurationLabel: string;
   routePath: Coordinates[];
-  status: PickupTrackingStatus;
+  routeDurationLabel: string;
+  routeTarget: { lat: number; lng: number } | null;
 }) {
-  const [routeMode, setRouteMode] = useState<RouteMode>("car");
-  const [lockedCarPath, setLockedCarPath] = useState<Coordinates[]>([]);
-
-  const routeTarget =
-    status === "en_route_hub" || status === "delivered_to_hub"
-      ? processingCenter
-        ? { lat: processingCenter.lat, lng: processingCenter.lng }
-        : pickupLocation
-      : pickupLocation;
+  const center = crewLocation ?? routeTarget ?? pickupLocation;
 
   const markers = [
     { key: "pickup", label: "home", position: pickupLocation, variant: "pickup" as const },
@@ -792,7 +702,7 @@ function TrackingFallbackMap({
   pickupLocation: Coordinates;
 }) {
   return (
-    <div className="relative h-[340px] w-full overflow-hidden bg-[#eef1f4]">
+    <div className="relative h-[320px] w-full overflow-hidden bg-[#eef1f4]">
       <div className="absolute inset-0 opacity-80">
         <div className="absolute left-[-18%] top-[38%] h-10 w-[140%] rotate-[-18deg] bg-white shadow-sm" />
         <div className="absolute left-[-18%] top-[60%] h-9 w-[140%] rotate-[-8deg] bg-white shadow-sm" />
@@ -802,22 +712,27 @@ function TrackingFallbackMap({
         <div className="absolute bottom-[10%] left-[16%] h-24 w-32 rounded-[18px] border border-slate-200 bg-slate-100" />
       </div>
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M38 64 C48 56 56 55 66 43" fill="none" stroke="#c0003b" strokeWidth="1.6" strokeDasharray="3 2" opacity="0.7" />
+        <path
+          d="M38 64 C48 56 56 55 66 43"
+          fill="none"
+          stroke="#2563eb"
+          strokeWidth="1.6"
+          strokeDasharray="3 2"
+          opacity="0.7"
+        />
       </svg>
       <div className="absolute left-[30%] top-[60%] flex flex-col items-center">
         <div className="flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white bg-[#2563eb] text-[11px] font-bold text-white shadow-lg">
           집
         </div>
-        <span className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">수거 위치</span>
       </div>
       <div className="absolute left-[62%] top-[36%] flex flex-col items-center">
         <div className="flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white bg-[#dc2626] text-[11px] font-bold text-white shadow-lg">
-          크루
+          C
         </div>
-        <span className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">이동 중</span>
       </div>
       <div className="absolute bottom-3 left-3 right-3 rounded-2xl bg-white/90 px-3 py-2 text-[11px] font-semibold leading-4 text-slate-500 shadow-sm">
-        지도 연결 전에도 위치 흐름을 확인할 수 있는 미리보기예요. 수거 위치 {pickupLocation.lat.toFixed(4)}, {pickupLocation.lng.toFixed(4)}
+        지도가 연결되기 전 위치 미리보기예요. 수거 위치 {pickupLocation.lat.toFixed(4)}, {pickupLocation.lng.toFixed(4)}
         {crewLocation ? ` · 크루 ${crewLocation.lat.toFixed(4)}, ${crewLocation.lng.toFixed(4)}` : ""}
       </div>
     </div>

@@ -92,6 +92,8 @@ type HomeSwapStatus =
   | "reReviewPending"
   | "reReviewCompleted";
 
+const DISPLAY_CREW_NAME = "무함마드";
+
 const previewSwapSteps: SwapStep[] = [
   "intro",
   "capture",
@@ -336,15 +338,15 @@ function createPreviewSwapRequest(): SwapRequest {
       pickupType: "BOOKING",
       status: "IN_PROGRESS",
       crewId: 101,
-      crewName: "민지 크루",
+      crewName: DISPLAY_CREW_NAME,
       address: "서울특별시 중구 세종대로 110",
       scheduledAt: "2026-06-15 09:00",
       requestedAt: now,
       nearbyCrews: [],
     },
     crewProfile: {
-      name: "민지 크루",
-      photoUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&q=80",
+      name: DISPLAY_CREW_NAME,
+      photoUrl: "/crew-muhammad.png",
       rating: 4.9,
       reviewSummary: ["시간 약속을 잘 지켜요", "수거 진행이 친절해요"],
     },
@@ -381,7 +383,7 @@ function createPreviewSwapRequest(): SwapRequest {
       nearbyCrews: [],
       events: [
         { eventType: "REQUESTED", message: "수거 예약이 접수됐어요.", createdAt: now },
-        { eventType: "ASSIGNED", message: "민지 크루가 배정됐어요.", createdAt: now },
+        { eventType: "ASSIGNED", message: `${DISPLAY_CREW_NAME} 크루가 배정됐어요.`, createdAt: now },
         { eventType: "EN_ROUTE", message: "크루가 수거 위치로 이동 중이에요.", createdAt: now },
       ],
     },
@@ -467,11 +469,16 @@ function createAcceptedTrackingRequest(baseRequest?: SwapRequest | null): SwapRe
       ...(baseRequest?.pickupRequest ?? {}),
       status: "IN_PROGRESS",
       crewId: baseRequest?.pickupRequest?.crewId ?? fallback.pickupRequest?.crewId ?? 101,
-      crewName: baseRequest?.pickupRequest?.crewName ?? fallback.pickupRequest?.crewName ?? "민지 크루",
+      crewName: DISPLAY_CREW_NAME,
       address: pickupAddress,
       nearbyCrews: baseRequest?.pickupRequest?.nearbyCrews ?? fallback.pickupRequest?.nearbyCrews ?? [],
     },
-    crewProfile: baseRequest?.crewProfile ?? fallback.crewProfile,
+    crewProfile: {
+      name: DISPLAY_CREW_NAME,
+      photoUrl: baseRequest?.crewProfile?.photoUrl ?? fallback.crewProfile?.photoUrl ?? "",
+      rating: baseRequest?.crewProfile?.rating ?? fallback.crewProfile?.rating ?? 4.9,
+      reviewSummary: baseRequest?.crewProfile?.reviewSummary ?? fallback.crewProfile?.reviewSummary ?? [],
+    },
     dispatchInfo: {
       ...(fallback.dispatchInfo as NonNullable<SwapRequest["dispatchInfo"]>),
       ...(baseRequest?.dispatchInfo ?? {}),
@@ -494,7 +501,7 @@ function createAcceptedTrackingRequest(baseRequest?: SwapRequest | null): SwapRe
         ? baseRequest.tracking.events
         : [
             { eventType: "REQUESTED", message: "수거 예약이 접수됐어요.", createdAt: now },
-            { eventType: "ASSIGNED", message: "민지 크루가 수락했어요.", createdAt: now },
+            { eventType: "ASSIGNED", message: `${DISPLAY_CREW_NAME} 크루가 수락했어요.`, createdAt: now },
             { eventType: "EN_ROUTE", message: "크루가 수거 위치로 이동 중이에요.", createdAt: now },
           ],
     },
@@ -562,6 +569,7 @@ export default function HomePage() {
   const [demoUser, setDemoUser] = useState<DemoUser | null>(null);
   const [lastCaptureSubmission, setLastCaptureSubmission] = useState<CaptureSubmission | null>(null);
   const [capturedApplianceImageUrl, setCapturedApplianceImageUrl] = useState("");
+  const [marketReturnStep, setMarketReturnStep] = useState<SwapStep | null>(null);
 
   function applyRestoredSwapRequest(restored: SwapRequest) {
     if (isCancelledSwapRequest(restored)) {
@@ -1116,7 +1124,7 @@ export default function HomePage() {
         : marketOpened
           ? "bg-white"
           : isSwapIntroScreen
-            ? "swapit-pattern-bg"
+            ? "bg-white"
             : isSwapCaptureScreen || isSwapAnalyzingScreen
               ? "bg-[#111318]"
               : swapItOpened
@@ -1133,9 +1141,6 @@ export default function HomePage() {
             <ThinQSplashScreen />
           ) : thinQOpened ? (
             <div className={`relative flex h-full animate-[fadeIn_.18s_ease-out] flex-col ${phoneViewportBackgroundClass}`}>
-              {isSwapIntroScreen ? (
-                <IndianPatternOverlay className="z-0" />
-              ) : null}
               {!isSwapAnalyzingScreen ? (
                 <PhoneStatusBar
                   className={isSwapIntroScreen ? "bg-transparent" : phoneViewportBackgroundClass}
@@ -1153,7 +1158,16 @@ export default function HomePage() {
               ) : marketOpened ? (
                 <LgMarketScreen
                   amount={swapRequest?.credit?.amount ?? 0}
-                  onBack={() => setMarketOpened(false)}
+                  onBack={() => {
+                    if (marketReturnStep) {
+                      setMarketOpened(false);
+                      setSwapItOpened(true);
+                      setSwapStep(marketReturnStep);
+                      return;
+                    }
+
+                    setMarketOpened(false);
+                  }}
                   onReturnHome={() => setMarketOpened(false)}
                 />
               ) : swapItOpened ? (
@@ -1242,6 +1256,7 @@ export default function HomePage() {
                     setSwapItOpened(false);
                   }}
                   onOpenMarket={() => {
+                    setMarketReturnStep("credit");
                     setSwapItOpened(false);
                     setMarketOpened(true);
                   }}
@@ -1272,6 +1287,7 @@ export default function HomePage() {
                     setSwapItOpened(true);
                   }}
                   onOpenMarket={() => {
+                    setMarketReturnStep(null);
                     setSwapItOpened(false);
                     setMarketOpened(true);
                   }}
@@ -1819,6 +1835,7 @@ function ThinQHomeScreen({
   onLogout: () => void;
 }) {
   const [activeHomeTab, setActiveHomeTab] = useState<HomeTab>("home");
+  const [tabHistory, setTabHistory] = useState<HomeTab[]>([]);
   const [selectedBenefit, setSelectedBenefit] = useState<DeviceBenefit | null>(null);
   const isNestedHomeTab = activeHomeTab !== "home";
   const openCurrentSwapStatus =
@@ -1837,19 +1854,43 @@ function ThinQHomeScreen({
           ? "Menu"
           : "Home";
 
+  const openHomeTab = (nextTab: HomeTab) => {
+    setActiveHomeTab((currentTab) => {
+      if (currentTab === nextTab) {
+        return currentTab;
+      }
+
+      setTabHistory((currentHistory) => [...currentHistory, currentTab]);
+      return nextTab;
+    });
+  };
+
+  const goBackHomeTab = () => {
+    setTabHistory((currentHistory) => {
+      if (currentHistory.length === 0) {
+        setActiveHomeTab("home");
+        return currentHistory;
+      }
+
+      const previousTab = currentHistory[currentHistory.length - 1];
+      setActiveHomeTab(previousTab);
+      return currentHistory.slice(0, -1);
+    });
+  };
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-cloud px-4 pb-0">
-      <header className="mb-3 flex items-center justify-between">
+      <header className="relative mb-3 flex items-center justify-between">
         <button
-          aria-label="홈 화면으로 돌아가기"
+          aria-label="이전 화면으로 돌아가기"
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink"
-          onClick={isNestedHomeTab ? () => setActiveHomeTab("home") : onBackHome}
+          onClick={isNestedHomeTab ? goBackHomeTab : onBackHome}
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="text-center">
-          <p className="text-xs font-semibold text-lgred">LG ThinQ</p>
-          <p className="text-[11px] font-semibold text-slate-500">{headerSubtitle}</p>
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+          <p className="text-xs font-semibold leading-none text-lgred">LG ThinQ</p>
+          <p className="mt-1 text-[11px] font-semibold leading-none text-slate-500">{headerSubtitle}</p>
         </div>
         <button
           className="h-9 rounded-full px-3 text-[11px] font-semibold text-slate-500"
@@ -1945,8 +1986,8 @@ function ThinQHomeScreen({
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            <DeviceCard applianceId="washing_machine" label="세탁기" onClick={() => setActiveHomeTab("devices")} status="대기 중" />
-            <DeviceCard applianceId="refrigerator" label="냉장고" onClick={() => setActiveHomeTab("devices")} status="정상" />
+            <DeviceCard applianceId="washing_machine" label="세탁기" onClick={() => openHomeTab("devices")} status="대기 중" />
+            <DeviceCard applianceId="refrigerator" label="냉장고" onClick={() => openHomeTab("devices")} status="정상" />
           </div>
         </section>
       </div>
@@ -1961,7 +2002,7 @@ function ThinQHomeScreen({
       <nav className="-mx-4 grid h-[76px] shrink-0 grid-cols-4 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_20px_rgba(15,23,42,0.06)]">
         <button
           className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "home" ? "text-lgred" : "text-slate-500"}`}
-          onClick={() => setActiveHomeTab("home")}
+          onClick={() => openHomeTab("home")}
           type="button"
         >
           <Home size={20} />
@@ -1969,7 +2010,7 @@ function ThinQHomeScreen({
         </button>
         <button
           className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "devices" ? "text-lgred" : "text-slate-500"}`}
-          onClick={() => setActiveHomeTab("devices")}
+          onClick={() => openHomeTab("devices")}
           type="button"
         >
           <Refrigerator size={20} />
@@ -1977,7 +2018,7 @@ function ThinQHomeScreen({
         </button>
         <button
           className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "care" ? "text-lgred" : "text-slate-500"}`}
-          onClick={() => setActiveHomeTab("care")}
+          onClick={() => openHomeTab("care")}
           type="button"
         >
           <Sparkles size={20} />
@@ -1985,7 +2026,7 @@ function ThinQHomeScreen({
         </button>
         <button
           className={`flex flex-col items-center justify-center gap-1 ${activeHomeTab === "menu" ? "text-lgred" : "text-slate-500"}`}
-          onClick={() => setActiveHomeTab("menu")}
+          onClick={() => openHomeTab("menu")}
           type="button"
         >
           <Menu size={20} strokeWidth={2.5} />
@@ -2348,7 +2389,7 @@ function SwapItFeatureScreen(props: {
       }`}
     >
       {props.step !== "analyzing" ? (
-      <header className="relative z-20 px-4 pb-3">
+      <header className="relative z-20 px-4 pb-0">
         <div className="mb-3 flex items-center justify-between">
           <button
             aria-label="이전 화면으로 돌아가기"
@@ -2667,15 +2708,15 @@ function SwapItIntro({
   const selectedLabel = applianceLabels[selectedAppliance];
 
   return (
-    <section className="relative flex min-h-full flex-col overflow-hidden bg-transparent px-4 pb-4 pt-1 text-ink">
-      <div className="pointer-events-none absolute left-[-60px] top-[170px] h-52 w-52 rounded-full bg-white/12 blur-3xl" />
-      <div className="pointer-events-none absolute right-[-70px] top-[22px] h-44 w-44 rounded-full bg-white/16 blur-3xl" />
+    <section className="relative flex min-h-full flex-col overflow-hidden bg-white px-4 pb-4 pt-1 text-ink">
+      <div className="pointer-events-none absolute left-[-60px] top-[170px] h-52 w-52 rounded-full bg-lgred/8 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-70px] top-[22px] h-44 w-44 rounded-full bg-lgred/10 blur-3xl" />
 
       <div className="phone-scroll relative z-10 min-h-0 flex-1 overflow-y-auto pb-3">
-        <section className="px-1 pb-4 pt-4 text-white">
-          <p className="text-[13px] font-bold text-white/75">LG ThinQ</p>
-          <h1 className="mt-2 text-[34px] font-bold leading-none tracking-tight">SwapIt</h1>
-          <p className="mt-3 max-w-[310px] text-sm font-semibold leading-6 text-white/85">
+        <section className="px-1 pb-4 pt-4">
+          <p className="text-[13px] font-bold text-lgred">LG ThinQ</p>
+          <h1 className="mt-2 text-[34px] font-bold leading-none tracking-tight text-ink">SwapIt</h1>
+          <p className="mt-3 max-w-[310px] text-sm font-semibold leading-6 text-slate-500">
             교체할 가전을 선택하면 사진 촬영부터 보상가 확인, 수거 예약까지 한 번에 진행할 수 있어요.
           </p>
         </section>
