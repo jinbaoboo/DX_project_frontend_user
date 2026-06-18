@@ -10,6 +10,7 @@ import { useEffect, useState, type ReactNode } from "react";
 type TrackingPanelProps = {
   swapRequest: SwapRequest | null;
   onNext: () => void;
+  onMissing?: () => void;
 };
 
 type PickupTrackingStatus =
@@ -25,6 +26,8 @@ type Coordinates = {
   lng: number;
 };
 
+type TrackingMetrics = NonNullable<SwapRequest["tracking"]["metrics"]>;
+
 type TrackingViewModel = {
   status: PickupTrackingStatus;
   title: string;
@@ -33,10 +36,19 @@ type TrackingViewModel = {
   pickupAddress: string;
   crewLocation: Coordinates | null;
   crewAddress: string;
+  pickupDistanceLabel: string;
   hubDistanceLabel: string;
   processingCenter: { label: string; lat: number; lng: number } | null;
   etaLabel: string;
+  routeDistanceLabel: string;
+  routeDurationLabel: string;
+  routeDistanceMeters: number | null;
   routePath: Coordinates[];
+  events: {
+    eventType: string;
+    message: string;
+    createdAt: string;
+  }[];
   crewProfile: {
     name: string;
     photoUrl: string;
@@ -81,6 +93,20 @@ function formatDistance(meters?: number | null) {
   if (meters == null) return "-";
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
   return `${Math.round(meters)}m`;
+}
+
+function formatDurationSeconds(seconds?: number | null) {
+  if (seconds == null) return "-";
+  return `${Math.max(1, Math.round(seconds / 60))}분`;
+}
+
+function formatPrecisionDistance(metrics?: TrackingMetrics | null) {
+  if (!metrics) return "-";
+  const distance = metrics.effectiveDistanceMeters ?? metrics.crewToPickupMeters;
+  if (metrics.proximityStatus === "SAME_PLACE") return "20m 이내";
+  if (metrics.proximityStatus === "NEAR") return distance == null ? "근처" : `${Math.max(1, Math.round(distance))}m 이내`;
+  if (metrics.distanceConfidence === "LOW" && distance != null) return `약 ${Math.round(distance)}m`;
+  return formatDistance(distance);
 }
 
 function formatWalkDuration(distanceMeters?: number | null) {
@@ -170,6 +196,10 @@ function progressIndex(status: PickupTrackingStatus) {
   }
 }
 
+function isNotFoundApiError(error: unknown) {
+  return error instanceof Error && /not found|404/i.test(error.message);
+}
+
 function kakaoWalkRouteUrl(origin: Coordinates, destination: Coordinates) {
   return `https://map.kakao.com/link/by/walk/crew,${origin.lat},${origin.lng}/pickup,${destination.lat},${destination.lng}`;
 }
@@ -184,12 +214,24 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
 
   const status = deriveStatus(request);
   const minutes = minutesUntil(request.tracking.estimatedArrivalAt);
+  const metrics = request.tracking.metrics;
+  const precisionDistanceLabel = formatPrecisionDistance(metrics);
+  const precisionDurationLabel =
+    metrics?.effectiveDurationSeconds != null ? formatDurationSeconds(metrics.effectiveDurationSeconds) : null;
   const driverLocation = request.tracking.driverLocation
     ? {
         lat: request.tracking.driverLocation.lat,
         lng: request.tracking.driverLocation.lng,
       }
     : null;
+  const route = request.tracking.route;
+  const routePoints = route?.points ?? [];
+  const hasDrawableVehicleRoute =
+    route?.mode === "DRIVE" &&
+    route.routeSource === "kakao_drive" &&
+    route.approximate !== true &&
+    route.suppressedByProximity !== true &&
+    routePoints.length > 1;
 
   return {
     status,
@@ -199,17 +241,21 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
     pickupAddress: request.pickupRequest?.address ?? request.booking?.address ?? "수거 위치 정보 없음",
     crewLocation: driverLocation,
     crewAddress: driverLocation ? "크루 현재 이동 위치" : "크루 위치 확인 중",
-    hubDistanceLabel: formatDistance(request.tracking.metrics?.crewToProcessingCenterMeters),
+    pickupDistanceLabel: precisionDistanceLabel,
+    hubDistanceLabel: formatDistance(metrics?.crewToProcessingCenterMeters),
     processingCenter: request.tracking.processingCenter ?? null,
     etaLabel: status === "delivered_to_hub" ? "처리 완료" : minutes > 0 ? `${minutes}분 예상` : "곧 도착",
-    routeDistanceLabel: request.tracking.route?.distanceLabel ?? "-",
-    routeDurationLabel: request.tracking.route?.durationLabel ?? "-",
-    routeDistanceMeters: request.tracking.route?.distanceMeters ?? request.tracking.metrics?.crewToPickupMeters ?? null,
-    routePath:
-      request.tracking.route?.points?.map((point) => ({
+    routeDistanceLabel:
+      precisionDistanceLabel !== "-" ? precisionDistanceLabel : request.tracking.route?.distanceLabel ?? "-",
+    routeDurationLabel: precisionDurationLabel ?? request.tracking.route?.durationLabel ?? "-",
+    routeDistanceMeters: metrics?.effectiveDistanceMeters ?? request.tracking.route?.distanceMeters ?? metrics?.crewToPickupMeters ?? null,
+    routePath: hasDrawableVehicleRoute
+      ? routePoints.map((point) => ({
         lat: point.lat,
         lng: point.lng,
-      })) ?? [],
+      }))
+      : [],
+    events: request.tracking.events ?? [],
     crewProfile: request.crewProfile
       ? {
           name: request.crewProfile.name,
@@ -225,7 +271,7 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
   };
 }
 
-export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
+export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelProps) {
   const [liveRequest, setLiveRequest] = useState<SwapRequest | null>(swapRequest);
   const [error, setError] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -249,6 +295,14 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
     }
 
     let disposed = false;
+    let timer: number | undefined;
+
+    const stopTracking = () => {
+      disposed = true;
+      if (timer !== undefined) {
+        window.clearInterval(timer);
+      }
+    };
 
     const fetchTracking = async () => {
       try {
@@ -268,22 +322,29 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
           setError(null);
         }
       } catch (requestError) {
-        if (!disposed) {
-          setError(requestError instanceof Error ? requestError.message : "tracking request failed");
+        if (disposed) {
+          return;
         }
+
+        if (isNotFoundApiError(requestError)) {
+          setLiveRequest(null);
+          setError(null);
+          onMissing?.();
+          stopTracking();
+          return;
+        }
+
+        setError(requestError instanceof Error ? requestError.message : "tracking request failed");
       }
     };
 
     void fetchTracking();
-    const timer = window.setInterval(() => {
+    timer = window.setInterval(() => {
       void fetchTracking();
     }, 2000);
 
-    return () => {
-      disposed = true;
-      window.clearInterval(timer);
-    };
-  }, [swapRequest?.id]);
+    return stopTracking;
+  }, [onMissing, swapRequest?.id]);
 
   const viewModel = liveRequest ? mapToViewModel(liveRequest) : null;
 
@@ -311,6 +372,7 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
     viewModel.status === "en_route_hub" || viewModel.status === "delivered_to_hub"
       ? viewModel.processingCenter
       : viewModel.pickupLocation;
+  const currentStepIndex = progressIndex(viewModel.status);
   const hasSubmittedReview = Boolean(liveRequest.crewReview);
 
   const handleSubmitReview = async () => {
@@ -379,6 +441,9 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
             crewLocation={viewModel.crewLocation}
             pickupLocation={viewModel.pickupLocation}
             processingCenter={viewModel.processingCenter}
+            routeDistanceLabel={viewModel.routeDistanceLabel}
+            routeDistanceMeters={viewModel.routeDistanceMeters}
+            routeDurationLabel={viewModel.routeDurationLabel}
             routePath={viewModel.routePath}
             status={viewModel.status}
           />
@@ -544,12 +609,18 @@ function TrackingMap({
   crewLocation,
   pickupLocation,
   processingCenter,
+  routeDistanceLabel,
+  routeDistanceMeters,
+  routeDurationLabel,
   routePath,
   status,
 }: {
   crewLocation: Coordinates | null;
   pickupLocation: Coordinates;
   processingCenter: { label: string; lat: number; lng: number } | null;
+  routeDistanceLabel: string;
+  routeDistanceMeters: number | null;
+  routeDurationLabel: string;
   routePath: Coordinates[];
   status: PickupTrackingStatus;
 }) {
@@ -580,7 +651,7 @@ function TrackingMap({
 
   useEffect(() => {
     setLockedCarPath([]);
-  }, [routeTarget.lat, routeTarget.lng]);
+  }, [routeTarget.lat, routeTarget.lng, crewLocation?.lat, crewLocation?.lng]);
 
   useEffect(() => {
     if (routePath.length <= 1) return;
@@ -674,6 +745,31 @@ function TrackingMap({
         <MapLegend colorClass="bg-[#2563eb]" label="수거 위치" />
         <MapLegend colorClass="bg-[#dc2626]" label="크루 현재 위치" />
         <MapLegend colorClass="bg-[#16a34a]" label="처리 허브" />
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({
+  icon,
+  title,
+  value,
+  caption,
+}: {
+  icon: ReactNode;
+  title: string;
+  value: string;
+  caption: string;
+}) {
+  return (
+    <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3">
+      <div className="flex items-start gap-3">
+        <div className="shrink-0">{icon}</div>
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-lgred">{title}</p>
+          <p className="mt-1 truncate text-[14px] font-bold leading-5 text-ink">{value}</p>
+          <p className="mt-1 text-[11px] font-semibold leading-4 text-slate-500">{caption}</p>
+        </div>
       </div>
     </div>
   );

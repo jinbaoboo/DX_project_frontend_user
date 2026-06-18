@@ -160,11 +160,18 @@ export function KakaoCanvasMap({
   const markerRefs = useRef<any[]>([]);
   const polylineRef = useRef<any>(null);
   const autoFitDoneRef = useRef(false);
+  const onCenterChangeEndRef = useRef(onCenterChangeEnd);
+  const onMapClickRef = useRef(onMapClick);
   const [loadError, setLoadError] = useState("");
 
   const stableMarkers = useMemo(() => markers, [markers]);
   const stablePath = useMemo(() => path.filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng)), [path]);
   const kakaoLevel = zoomToLevel(zoom, level);
+
+  useEffect(() => {
+    onCenterChangeEndRef.current = onCenterChangeEnd;
+    onMapClickRef.current = onMapClick;
+  }, [onCenterChangeEnd, onMapClick]);
 
   useEffect(() => {
     let mounted = true;
@@ -183,12 +190,12 @@ export function KakaoCanvasMap({
 
         kakao.maps.event.addListener(map, "click", (mouseEvent: any) => {
           const latLng = mouseEvent.latLng;
-          onMapClick?.({ lat: latLng.getLat(), lng: latLng.getLng() });
+          onMapClickRef.current?.({ lat: latLng.getLat(), lng: latLng.getLng() });
         });
 
         kakao.maps.event.addListener(map, "idle", () => {
           const currentCenter = map.getCenter();
-          onCenterChangeEnd?.({ lat: currentCenter.getLat(), lng: currentCenter.getLng() });
+          onCenterChangeEndRef.current?.({ lat: currentCenter.getLat(), lng: currentCenter.getLng() });
         });
 
         mapRef.current = map;
@@ -200,7 +207,7 @@ export function KakaoCanvasMap({
     return () => {
       mounted = false;
     };
-  }, [appKey, center.lat, center.lng, kakaoLevel, maxZoom, minZoom, onCenterChangeEnd, onMapClick]);
+  }, [appKey, center.lat, center.lng, kakaoLevel, maxZoom, minZoom]);
 
   useEffect(() => {
     const map = mapRef.current;

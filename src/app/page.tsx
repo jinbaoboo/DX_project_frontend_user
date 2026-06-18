@@ -40,7 +40,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BookingPanel } from "@/features/booking/BookingPanel";
 import type { BookingPurpose, BookingSelection } from "@/features/booking/BookingPanel";
 import { OngoingReservationPanel } from "@/features/booking/OngoingReservationPanel";
@@ -55,13 +55,14 @@ import { TrackingPanel } from "@/features/tracking/TrackingPanel";
 import {
   acceptPreValuation,
   analyzePhoto,
+  cancelSwapRequest,
   completeFinalValuation,
   confirmBooking,
+  createInstantCallForUser,
   createSwapRequestForUser,
   firebaseLogin,
   getLatestSwapRequest,
   getSwapRequest,
-  requestInstantCall,
   updateAppliance,
   type DemoUser,
 } from "@/lib/api";
@@ -518,6 +519,14 @@ function isCrewAcceptedSwapRequest(request: SwapRequest | null | undefined) {
   );
 }
 
+function isCancelledSwapRequest(request: SwapRequest | null | undefined) {
+  return request?.status === "CANCELLED" || request?.pickupRequest?.status === "CANCELLED";
+}
+
+function isNotFoundApiError(error: unknown) {
+  return error instanceof Error && /not found|404/i.test(error.message);
+}
+
 function previewModelNameFor(appliance: ApplianceId) {
   switch (appliance) {
     case "refrigerator":
@@ -555,6 +564,15 @@ export default function HomePage() {
   const [capturedApplianceImageUrl, setCapturedApplianceImageUrl] = useState("");
 
   function applyRestoredSwapRequest(restored: SwapRequest) {
+    if (isCancelledSwapRequest(restored)) {
+      setSwapRequest(null);
+      setActiveReservationRequest(null);
+      setHomeSwapStatus("none");
+      setReservationLabel("");
+      setReservationAddress("");
+      return;
+    }
+
     setSwapRequest(restored);
     setSelectedAppliance(
       applianceOptions.some((option) => option.id === restored.appliance.applianceType)
@@ -700,20 +718,21 @@ export default function HomePage() {
 
   const bookingMutation = useMutation({
     mutationFn: async (booking: BookingSelection) => {
-      let bookingSwapRequest = swapRequest;
+      const requestUser =
+        demoUser
+          ? {
+              userId: demoUser.userId,
+              userName: demoUser.userName,
+              phoneNumber: demoUser.phoneNumber,
+            }
+          : {
+              userName: "Demo User",
+              phoneNumber: "+91-90000-00000",
+            };
 
-      if (!bookingSwapRequest || bookingSwapRequest.id < 0) {
+      const createReadySwapRequest = async () => {
         const created = await createSwapRequestForUser(
-          demoUser
-            ? {
-                userId: demoUser.userId,
-                userName: demoUser.userName,
-                phoneNumber: demoUser.phoneNumber,
-              }
-            : {
-                userName: "Demo User",
-                phoneNumber: "+91-90000-00000",
-              },
+          requestUser,
           selectedAppliance,
         );
         await analyzePhoto(created.id, {
@@ -726,32 +745,62 @@ export default function HomePage() {
           estimatedAge: "3년",
           exteriorCondition: "생활 스크래치",
         });
-        bookingSwapRequest = await acceptPreValuation(created.id);
-      } else if (bookingSwapRequest.status !== "PRE_VALUATION_ACCEPTED") {
-        bookingSwapRequest = await acceptPreValuation(bookingSwapRequest.id);
-      }
+        return acceptPreValuation(created.id);
+      };
 
       if (booking.pickupLat == null || booking.pickupLng == null) {
         throw new Error("Pickup location coordinates are required");
       }
+      const pickupLat = booking.pickupLat;
+      const pickupLng = booking.pickupLng;
 
-      const data =
-        booking.mode === "schedule"
-          ? await confirmBooking(bookingSwapRequest.id, {
-              address: booking.pickupAddress ?? "A-12, New Delhi demo street",
-              detailAddress: booking.detailAddress ?? "Demo street",
-              pickupLat: booking.pickupLat,
-              pickupLng: booking.pickupLng,
-              bookingDate: booking.bookingDate,
-              bookingTime: booking.bookingTime,
-            })
-          : await requestInstantCall(bookingSwapRequest.id, {
-              address: booking.pickupAddress ?? "A-12, New Delhi demo street",
-              detailAddress: booking.detailAddress ?? "Near LG demo pickup point",
-              pickupLat: booking.pickupLat,
-              pickupLng: booking.pickupLng,
-            });
-      return { data, booking };
+      const submitScheduledBooking = (request: SwapRequest) =>
+        confirmBooking(request.id, {
+          address: booking.pickupAddress ?? "A-12, New Delhi demo street",
+          detailAddress: booking.detailAddress ?? "Demo street",
+          pickupLat,
+          pickupLng,
+          pickupAccuracyMeters: booking.pickupAccuracyMeters,
+          pickupSource: booking.pickupSource,
+          bookingDate: booking.bookingDate,
+          bookingTime: booking.bookingTime,
+        });
+
+      const submitFreshInstantCall = () =>
+        createInstantCallForUser(requestUser, selectedAppliance, {
+          address: booking.pickupAddress ?? "A-12, New Delhi demo street",
+          detailAddress: booking.detailAddress ?? "Near LG demo pickup point",
+          pickupLat,
+          pickupLng,
+          pickupAccuracyMeters: booking.pickupAccuracyMeters,
+          pickupSource: booking.pickupSource,
+        });
+
+      let bookingSwapRequest = swapRequest;
+
+      try {
+        if (booking.mode === "call") {
+          const data = await submitFreshInstantCall();
+          return { data, booking };
+        }
+
+        if (!bookingSwapRequest || bookingSwapRequest.id < 0) {
+          bookingSwapRequest = await createReadySwapRequest();
+        } else if (bookingSwapRequest.status !== "PRE_VALUATION_ACCEPTED") {
+          bookingSwapRequest = await acceptPreValuation(bookingSwapRequest.id);
+        }
+
+        const data = await submitScheduledBooking(bookingSwapRequest);
+        return { data, booking };
+      } catch (error) {
+        if (!isNotFoundApiError(error)) {
+          throw error;
+        }
+
+        const freshRequest = await createReadySwapRequest();
+        const data = await submitScheduledBooking(freshRequest);
+        return { data, booking };
+      }
     },
     onSuccess: ({ data, booking }) => {
       setSwapRequest(data);
@@ -825,12 +874,39 @@ export default function HomePage() {
     setSwapStep("intro");
   };
 
-  const clearActiveReservation = () => {
+  const clearActiveReservation = useCallback(() => {
     setActiveReservationRequest(null);
     setHomeSwapStatus("none");
     setReservationLabel("");
     setReservationAddress("");
-  };
+  }, []);
+
+  const cancelReservationMutation = useMutation({
+    mutationFn: (requestId: number) => cancelSwapRequest(requestId),
+    onSuccess: (_data, requestId) => {
+      clearActiveReservation();
+      setSwapRequest((current) => (current?.id === requestId ? null : current));
+      setSwapItOpened(false);
+    },
+  });
+
+  const cancelActiveReservation = useCallback(() => {
+    const currentRequest = activeReservationRequest ?? swapRequest;
+    if (!currentRequest || currentRequest.id < 0) {
+      clearActiveReservation();
+      setSwapRequest(null);
+      setSwapItOpened(false);
+      return;
+    }
+
+    cancelReservationMutation.mutate(currentRequest.id);
+  }, [activeReservationRequest, cancelReservationMutation, clearActiveReservation, swapRequest]);
+
+  const handleTrackingMissing = useCallback(() => {
+    clearActiveReservation();
+    setSwapRequest(null);
+    setSwapStep("booking");
+  }, [clearActiveReservation]);
 
   const openBookingScreen = (purpose: BookingPurpose = "pickup") => {
     bookingMutation.reset();
@@ -870,8 +946,7 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    const shouldWatchReservation =
-      homeSwapStatus === "reserved" || homeSwapStatus === "pickup";
+    const shouldWatchReservation = homeSwapStatus === "reserved";
 
     if (!shouldWatchReservation) {
       return undefined;
@@ -907,6 +982,14 @@ export default function HomePage() {
         const latest = await getSwapRequest(currentRequest.id);
         if (disposed) return;
 
+        if (isCancelledSwapRequest(latest)) {
+          clearActiveReservation();
+          if (swapRequest?.id === currentRequest.id) {
+            setSwapRequest(null);
+          }
+          return;
+        }
+
         const latestReservationLabel =
           latest.booking?.bookingDate && latest.booking?.bookingTime
             ? `${latest.booking.bookingDate} ${latest.booking.bookingTime}`
@@ -929,7 +1012,17 @@ export default function HomePage() {
             setHomeSwapStatus("pickup");
           }
         }
-      } catch {
+      } catch (error) {
+        if (isNotFoundApiError(error)) {
+          setActiveReservationRequest(null);
+          if (swapRequest?.id === currentRequest.id) {
+            setSwapRequest(null);
+          }
+          setHomeSwapStatus("none");
+          setReservationLabel("");
+          setReservationAddress("");
+          return;
+        }
         // 다음 polling 주기에서 다시 확인해요.
       }
     };
@@ -943,7 +1036,7 @@ export default function HomePage() {
       disposed = true;
       window.clearInterval(timer);
     };
-  }, [activeReservationRequest, homeSwapStatus, reservationAddress, reservationLabel, swapItOpened, swapRequest, swapStep]);
+  }, [activeReservationRequest, clearActiveReservation, homeSwapStatus, reservationAddress, reservationLabel, swapItOpened, swapRequest, swapStep]);
 
   const moveToNextSwapScreen = () => {
     const nextStep = nextSwapStep(swapStep);
@@ -1154,14 +1247,12 @@ export default function HomePage() {
                   }}
                   onReturnHome={() => setSwapItOpened(false)}
                   onChangeReservation={() => setSwapStep("booking")}
-                  onCancelReservation={() => {
-                    clearActiveReservation();
-                    setSwapItOpened(false);
-                  }}
+                  onCancelReservation={cancelActiveReservation}
                   onCloseReservationComplete={() => setSwapItOpened(false)}
                   onViewReservation={openOngoingReservation}
                   onOpenTracking={() => openAcceptedTracking()}
                   onOpenCredit={() => setSwapStep("credit")}
+                  onTrackingMissing={handleTrackingMissing}
                   onNextScreen={moveToNextSwapScreen}
                 />
               ) : (
@@ -2227,6 +2318,7 @@ function SwapItFeatureScreen(props: {
   onViewReservation: () => void;
   onOpenTracking: () => void;
   onOpenCredit: () => void;
+  onTrackingMissing: () => void;
   onNextScreen: () => void;
 }) {
   const selectedLabel =
@@ -2383,6 +2475,7 @@ function SwapItFeatureScreen(props: {
           <TrackingPanel
             swapRequest={props.swapRequest}
             onNext={props.onComplete}
+            onMissing={props.onTrackingMissing}
           />
         ) : null}
         {props.step === "credit" ? (

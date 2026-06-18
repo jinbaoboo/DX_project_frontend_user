@@ -66,6 +66,8 @@ type BookingCopy = {
 type PickupCoordinates = {
   lat: number;
   lng: number;
+  accuracyMeters?: number;
+  source?: "browser_geolocation" | "manual_pin" | "address_geocode";
 };
 
 type AddressSuggestion = {
@@ -81,6 +83,8 @@ export type BookingSelection = {
   detailAddress?: string;
   pickupLat?: number;
   pickupLng?: number;
+  pickupAccuracyMeters?: number;
+  pickupSource?: string;
   bookingDate?: string;
   bookingTime?: string;
 };
@@ -96,6 +100,8 @@ const KakaoCanvasMap = dynamic(
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY?.trim() ?? "";
 
 const defaultAddress = "";
+const emptyMapMarkers: [] = [];
+const emptyMapPath: [] = [];
 
 const bookingCopies: Record<BookingPurpose, BookingCopy> = {
   pickup: {
@@ -231,7 +237,8 @@ async function reverseGeocode(latitude: number, longitude: number) {
     lat: String(latitude),
     lon: String(longitude),
   });
-  const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params.toString()}`);
+  params.set("mode", "reverse");
+  const response = await fetch(`/api/geocode?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error("reverse geocoding failed");
@@ -249,7 +256,8 @@ async function geocodeAddress(query: string) {
     limit: "1",
     addressdetails: "1",
   });
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`);
+  params.set("mode", "search");
+  const response = await fetch(`/api/geocode?${params.toString()}`);
   if (!response.ok) {
     throw new Error("address geocoding failed");
   }
@@ -378,21 +386,29 @@ function ScheduleBooking({
     }
     setPinLocating(true);
     try {
-      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
-          (position) => resolve(position.coords),
+          (position) => resolve(position),
           (error) => reject(error),
           { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
         );
       });
+      const coords = position.coords;
       const nextCoords = { lat: coords.latitude, lng: coords.longitude };
+      const nextPreciseCoords = {
+        ...nextCoords,
+        accuracyMeters: coords.accuracy,
+        source: "browser_geolocation" as const,
+      };
       let nextAddress = `현재 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`;
+      setPickupCoords(nextPreciseCoords);
+      setPickupAddress(nextAddress);
       try {
         nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
       } catch {
         // 좌표만으로도 충분히 유효해요.
       }
-      setPickupCoords(nextCoords);
+      setPickupCoords(nextPreciseCoords);
       setPickupAddress(nextAddress);
     } catch {
       // 위치 권한 거부/실패 시 조용히 무시해요.
@@ -402,9 +418,15 @@ function ScheduleBooking({
   };
 
   const selectScheduleMapLocation = async (nextCoords: PickupCoordinates) => {
-    setPickupCoords(nextCoords);
+    const preciseCoords = {
+      ...nextCoords,
+      accuracyMeters: nextCoords.accuracyMeters ?? 10,
+      source: "manual_pin" as const,
+    };
+    setPickupCoords(preciseCoords);
 
     let nextAddress = `선택 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`;
+    setPickupAddress(nextAddress);
     try {
       nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
     } catch {
@@ -520,6 +542,8 @@ function ScheduleBooking({
             detailAddress,
             pickupLat: pickupCoords.lat,
             pickupLng: pickupCoords.lng,
+            pickupAccuracyMeters: pickupCoords.accuracyMeters,
+            pickupSource: pickupCoords.source,
             bookingDate: selectedDate,
             bookingTime: selectedTime,
           });
@@ -821,20 +845,25 @@ function InstantCallBooking({
     setLocationError("");
 
     try {
-      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
-          (position) => resolve(position.coords),
+          (position) => resolve(position),
           (error) => reject(error),
           { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
         );
       });
+      const coords = position.coords;
 
       const nextCoords = {
         lat: coords.latitude,
         lng: coords.longitude,
+        accuracyMeters: coords.accuracy,
+        source: "browser_geolocation" as const,
       };
 
       let nextAddress = `현재 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`;
+      setGpsCoords(nextCoords);
+      setPickupAddress(nextAddress);
       try {
         nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
       } catch {
@@ -861,14 +890,20 @@ function InstantCallBooking({
 
   const selectMapLocation = async (nextCoords: PickupCoordinates) => {
     setLocationError("");
+    const preciseCoords = {
+      ...nextCoords,
+      accuracyMeters: nextCoords.accuracyMeters ?? 10,
+      source: "manual_pin" as const,
+    };
 
     if (pickupMethod === "gps") {
-      setGpsCoords(nextCoords);
+      setGpsCoords(preciseCoords);
     } else {
-      setManualCoords(nextCoords);
+      setManualCoords(preciseCoords);
     }
 
     let nextAddress = `선택 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`;
+    setPickupAddress(nextAddress);
     try {
       nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
     } catch {
@@ -906,9 +941,13 @@ function InstantCallBooking({
       try {
         const result = await geocodeAddress(trimmedAddress);
         finalAddress = result.address;
-        finalCoords = result.coordinates;
+        finalCoords = {
+          ...result.coordinates,
+          accuracyMeters: 30,
+          source: "address_geocode",
+        };
         setPickupAddress(result.address);
-        setManualCoords(result.coordinates);
+        setManualCoords(finalCoords);
       } catch {
         setLocationError(copy.addressNotFoundError);
         setMatching(false);
@@ -931,6 +970,8 @@ function InstantCallBooking({
       detailAddress: detailAddress || (pickupMethod === "gps" ? copy.currentDetailLabel : ""),
       pickupLat: finalCoords.lat,
       pickupLng: finalCoords.lng,
+      pickupAccuracyMeters: finalCoords.accuracyMeters,
+      pickupSource: finalCoords.source,
     });
 
     setMatching(false);
@@ -1031,18 +1072,63 @@ function PickupPreviewMap({
   }
 
   return (
+    <PickupInteractiveMap
+      adjustHint={adjustHint}
+      coordinates={coordinates}
+      locating={locating}
+      onCoordinateSelect={onCoordinateSelect}
+      onLocate={onLocate}
+    />
+  );
+}
+
+function sameCoordinates(left: PickupCoordinates, right: PickupCoordinates) {
+  return Math.abs(left.lat - right.lat) < 0.000001 && Math.abs(left.lng - right.lng) < 0.000001;
+}
+
+function PickupInteractiveMap({
+  adjustHint,
+  coordinates,
+  locating,
+  onCoordinateSelect,
+  onLocate,
+}: {
+  adjustHint?: string;
+  coordinates: PickupCoordinates;
+  locating: boolean;
+  onCoordinateSelect?: (coordinates: PickupCoordinates) => void;
+  onLocate?: () => void;
+}) {
+  const [draftCoordinates, setDraftCoordinates] = useState<PickupCoordinates>(coordinates);
+
+  useEffect(() => {
+    setDraftCoordinates(coordinates);
+  }, [coordinates.accuracyMeters, coordinates.lat, coordinates.lng, coordinates.source]);
+
+  const handleDraftCoordinateChange = (nextCoordinates: PickupCoordinates) => {
+    const nextDraft = {
+      ...nextCoordinates,
+      accuracyMeters: nextCoordinates.accuracyMeters ?? coordinates.accuracyMeters,
+      source: "manual_pin" as const,
+    };
+
+    setDraftCoordinates((current) => (sameCoordinates(current, nextDraft) ? current : nextDraft));
+    if (!sameCoordinates(coordinates, nextDraft)) {
+      onCoordinateSelect?.(nextDraft);
+    }
+  };
+
+  return (
     <div className="relative h-[360px] w-full overflow-hidden bg-slate-100">
       {kakaoMapAppKey ? (
         <KakaoCanvasMap
           appKey={kakaoMapAppKey}
-          center={coordinates}
+          center={draftCoordinates}
           className="h-full w-full"
           maxZoom={20}
-          markers={[]}
-          onCenterChangeEnd={onCoordinateSelect}
-          onMapClick={onCoordinateSelect}
-          path={[]}
-          syncCenter
+          markers={emptyMapMarkers}
+          onCenterChangeEnd={handleDraftCoordinateChange}
+          path={emptyMapPath}
           zoom={19}
         />
       ) : (
@@ -1069,7 +1155,7 @@ function PickupPreviewMap({
       <button
         type="button"
         aria-label="현재 위치로 이동"
-        className="absolute bottom-4 left-4 flex h-11 w-11 items-center justify-center rounded-full bg-white text-ink shadow-lg transition active:scale-95 disabled:opacity-60"
+        className="absolute bottom-4 left-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-ink shadow-lg transition active:scale-95 disabled:opacity-60"
         disabled={!onLocate || locating}
         onClick={onLocate}
       >
@@ -1135,13 +1221,14 @@ function ManualAddressEditor({
       setSearching(true);
       try {
         const params = new URLSearchParams({
+          mode: "search",
           format: "json",
           q: query,
           countrycodes: "kr",
           limit: "5",
           addressdetails: "1",
         });
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+        const response = await fetch(`/api/geocode?${params.toString()}`, {
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -1174,6 +1261,8 @@ function ManualAddressEditor({
     onCoordinateChange({
       lat: Number(suggestion.lat),
       lng: Number(suggestion.lon),
+      accuracyMeters: 30,
+      source: "address_geocode",
     });
   };
 
@@ -1187,19 +1276,26 @@ function ManualAddressEditor({
     setLocationError("");
 
     try {
-      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
-          (position) => resolve(position.coords),
+          (position) => resolve(position),
           (error) => reject(error),
           { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
         );
       });
+      const coords = position.coords;
       const nextCoords = {
         lat: coords.latitude,
         lng: coords.longitude,
+        accuracyMeters: coords.accuracy,
+        source: "browser_geolocation" as const,
       };
 
       let nextAddress = `현재 위치 (${nextCoords.lat.toFixed(5)}, ${nextCoords.lng.toFixed(5)})`;
+      setInputValue(nextAddress);
+      setSuggestions([]);
+      onAddressChange(nextAddress);
+      onCoordinateChange(nextCoords);
       try {
         nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
       } catch {

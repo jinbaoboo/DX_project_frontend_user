@@ -67,6 +67,8 @@ export type SwapRequest = {
     detailAddress?: string | null;
     pickupLat?: number | null;
     pickupLng?: number | null;
+    pickupAccuracyMeters?: number | null;
+    pickupSource?: string | null;
   } | null;
   pickupRequest?: {
     pickupRequestId: number;
@@ -108,6 +110,9 @@ export type SwapRequest = {
       heading: number;
       speed: number;
       updatedAt: string;
+      accuracyMeters?: number | null;
+      source?: string | null;
+      collectedAt?: string | null;
     } | null;
     processingCenter?: {
       label: string;
@@ -119,6 +124,12 @@ export type SwapRequest = {
       crewToPickupMeters: number | null;
       crewToProcessingCenterMeters: number | null;
       locationLive: boolean;
+      driverAccuracyMeters?: number | null;
+      pickupAccuracyMeters?: number | null;
+      proximityStatus?: "SAME_PLACE" | "NEAR" | "ROUTE_REQUIRED" | "LOW_CONFIDENCE" | string;
+      effectiveDistanceMeters?: number | null;
+      effectiveDurationSeconds?: number | null;
+      distanceConfidence?: "HIGH" | "MEDIUM" | "LOW" | string;
     } | null;
     nearbyCrews?: NearbyCrew[];
     events?: {
@@ -138,6 +149,9 @@ export type SwapRequest = {
         lng: number;
       }[];
       calculatedAt?: string | null;
+      routeSource?: string | null;
+      approximate?: boolean;
+      suppressedByProximity?: boolean;
     } | null;
     locationHistory?: {
       lat: number;
@@ -145,6 +159,8 @@ export type SwapRequest = {
       heading: number;
       speed: number;
       recordedAt: string;
+      accuracyMeters?: number | null;
+      source?: string | null;
     }[];
   };
   finalValuation?: {
