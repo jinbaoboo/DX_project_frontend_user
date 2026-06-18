@@ -44,6 +44,7 @@ type TrackingViewModel = {
     phone: string;
   } | null;
   locationMessage: string;
+  events: { eventType: string; message: string; createdAt: string }[];
 };
 
 type RouteMode = "car" | "walk";
@@ -220,6 +221,7 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
     locationMessage: request.tracking.metrics?.locationLive
       ? `실시간 위치 갱신 ${request.tracking.driverLocation?.updatedAt ? formatDateTime(request.tracking.driverLocation.updatedAt) : ""}`.trim()
       : "최신 위치를 확인하는 중입니다.",
+    events: request.tracking.events ?? [],
   };
 }
 
@@ -295,6 +297,15 @@ export function TrackingPanel({ swapRequest, onNext }: TrackingPanelProps) {
       </section>
     );
   }
+
+  const currentStepIndex = {
+    waiting: 0,
+    crew_assigned: 1,
+    en_route_pickup: 2,
+    arrived: 3,
+    en_route_hub: 4,
+    delivered_to_hub: 4,
+  }[viewModel.status] ?? 0;
 
   const nextDestination =
     viewModel.status === "en_route_hub" || viewModel.status === "delivered_to_hub"
@@ -606,16 +617,17 @@ function TrackingMap({
             routeWeight={hasRoadRoute ? 6 : 4}
           />
         ) : (
-          <TrackingFallbackMap crewLocation={crewLocation} pickupLocation={pickupLocation} />
-        )}
-          <div className="flex h-[340px] w-full items-center justify-center px-6 text-center">
-            <div>
-              <p className="text-sm font-black text-ink">Kakao Maps 연결이 필요합니다</p>
-              <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-                `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` 값을 확인한 뒤 앱을 다시 실행해 주세요.
-              </p>
+          <>
+            <TrackingFallbackMap crewLocation={crewLocation} pickupLocation={pickupLocation} />
+            <div className="flex h-[340px] w-full items-center justify-center px-6 text-center">
+              <div>
+                <p className="text-sm font-black text-ink">Kakao Maps 연결이 필요합니다</p>
+                <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
+                  `NEXT_PUBLIC_KAKAO_MAP_APP_KEY` 값을 확인한 뒤 앱을 다시 실행해 주세요.
+                </p>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         <div className="absolute right-3 top-3 z-30 flex rounded-full bg-white/95 p-1 shadow-[0_8px_24px_rgba(15,23,42,0.12)] backdrop-blur">
@@ -729,4 +741,27 @@ function defaultEventMessage(stepKey: (typeof progressSteps)[number]["key"]) {
     case "HUB_DONE":
       return "e-waste 공장 전달 완료 시 최종 완료 상태가 표시됩니다.";
   }
+}
+
+function InfoCard({
+  icon,
+  title,
+  value,
+  caption,
+}: {
+  icon: ReactNode;
+  title: string;
+  value: string;
+  caption?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white p-3">
+      <div className="shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold text-slate-500">{title}</p>
+        <p className="mt-0.5 truncate text-[13px] font-bold text-ink">{value}</p>
+        {caption ? <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">{caption}</p> : null}
+      </div>
+    </div>
+  );
 }
