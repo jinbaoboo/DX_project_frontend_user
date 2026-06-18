@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Service3DIcon } from "@/components/Service3DIcon";
 import { getTracking, submitCrewReview } from "@/lib/api";
@@ -64,6 +64,11 @@ const KakaoCanvasMap = dynamic(
 );
 
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY?.trim() ?? "";
+const DEFAULT_CREW_PROFILE = {
+  name: "무함마드",
+  photoUrl: "/crew-muhammad.png",
+  rating: 4.9,
+};
 
 const progressSteps = [
   { key: "REQUESTED", label: "요청 접수" },
@@ -121,7 +126,7 @@ function deriveStatus(request: SwapRequest): PickupTrackingStatus {
 function titleFor(status: PickupTrackingStatus) {
   switch (status) {
     case "crew_assigned":
-      return "수거 크루가 배정됐어요";
+      return "수거 크루가 배정되었어요";
     case "en_route_pickup":
       return "크루가 수거지로 이동 중이에요";
     case "arrived":
@@ -129,10 +134,27 @@ function titleFor(status: PickupTrackingStatus) {
     case "en_route_hub":
       return "수거 후 처리 허브로 이동 중이에요";
     case "delivered_to_hub":
-      return "e-waste 공장 전달이 완료됐어요";
+      return "e-waste 공장 전달이 완료되었어요";
     default:
       return "가까운 수거 크루를 찾고 있어요";
   }
+}
+
+function normalizeCrewProfile(profile: SwapRequest["crewProfile"]) {
+  if (!profile) return null;
+
+  const name = profile.name?.trim() ?? "";
+  const photoUrl = profile.photoUrl?.trim() ?? "";
+  const hasBrokenName = !name || /[?�誘쇱]/.test(name);
+  const isLegacyDemoPhoto = photoUrl.includes("images.unsplash.com");
+  const shouldUseDemoProfile = hasBrokenName || isLegacyDemoPhoto;
+
+  return {
+    name: shouldUseDemoProfile ? DEFAULT_CREW_PROFILE.name : name,
+    photoUrl: shouldUseDemoProfile || !photoUrl ? DEFAULT_CREW_PROFILE.photoUrl : photoUrl,
+    rating: shouldUseDemoProfile ? DEFAULT_CREW_PROFILE.rating : profile.rating || DEFAULT_CREW_PROFILE.rating,
+    phone: "+82-10-0000-0000",
+  };
 }
 
 function subtitleFor(status: PickupTrackingStatus) {
@@ -148,7 +170,7 @@ function subtitleFor(status: PickupTrackingStatus) {
     case "delivered_to_hub":
       return "수거와 처리 단계가 완료되어 보상 확인 단계로 이동할 수 있어요.";
     default:
-      return "매칭 점수가 높은 크루에게 우선 배차 알림을 보내고 있어요.";
+      return "매칭 점수가 높은 크루에게 우선 배정 알림을 보내고 있어요.";
   }
 }
 
@@ -188,6 +210,7 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
         lng: request.tracking.driverLocation.lng,
       }
     : null;
+  const routeDurationLabel = request.tracking.route?.durationLabel ?? "-";
 
   return {
     status,
@@ -199,24 +222,24 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
     crewAddress: driverLocation ? "크루 현재 이동 위치" : "크루 위치 확인 중",
     hubDistanceLabel: formatDistance(request.tracking.metrics?.crewToProcessingCenterMeters),
     processingCenter: request.tracking.processingCenter ?? null,
-    etaLabel: status === "delivered_to_hub" ? "처리 완료" : minutes > 0 ? `${minutes}분 예상` : "곧 도착",
+    etaLabel:
+      status === "delivered_to_hub"
+        ? "처리 완료"
+        : routeDurationLabel !== "-"
+          ? `${routeDurationLabel} 예상`
+          : minutes > 0
+            ? `${minutes}분 예상`
+            : "곧 도착",
     pickupDistanceLabel: formatDistance(request.tracking.metrics?.crewToPickupMeters),
     routeDistanceLabel: request.tracking.route?.distanceLabel ?? "-",
-    routeDurationLabel: request.tracking.route?.durationLabel ?? "-",
+    routeDurationLabel,
     routeDistanceMeters: request.tracking.route?.distanceMeters ?? request.tracking.metrics?.crewToPickupMeters ?? null,
     routePath:
       request.tracking.route?.points?.map((point) => ({
         lat: point.lat,
         lng: point.lng,
       })) ?? [],
-    crewProfile: request.crewProfile
-      ? {
-          name: request.crewProfile.name,
-          photoUrl: request.crewProfile.photoUrl,
-          rating: request.crewProfile.rating,
-          phone: "+82-10-0000-0000",
-        }
-      : null,
+    crewProfile: normalizeCrewProfile(request.crewProfile),
     locationMessage: request.tracking.metrics?.locationLive
       ? `실시간 위치 갱신 ${request.tracking.driverLocation?.updatedAt ? formatDateTime(request.tracking.driverLocation.updatedAt) : ""}`.trim()
       : "최신 위치를 확인하는 중입니다.",
@@ -316,8 +339,8 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
     viewModel.status === "en_route_hub" || viewModel.status === "delivered_to_hub"
       ? viewModel.processingCenter
       : viewModel.pickupLocation;
-  const hasSubmittedReview = Boolean(liveRequest.crewReview);
   const currentStepIndex = progressIndex(viewModel.status);
+  const hasSubmittedReview = Boolean(liveRequest.crewReview);
 
   const handleSubmitReview = async () => {
     if (!liveRequest.id) return;
@@ -476,7 +499,7 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
                 <div>
                   <p className="text-[12px] font-black text-lgred">크루 평점</p>
                   <p className="mt-1 text-[15px] font-bold text-ink">
-                    {viewModel.crewProfile?.name ?? "담당 크루"}님은 어떠셨나요?
+                    {viewModel.crewProfile?.name ?? "담당 크루"}님은 어땠나요?
                   </p>
                 </div>
                 {hasSubmittedReview ? (
@@ -690,7 +713,7 @@ function TrackingFallbackMap({
       </svg>
       <div className="absolute left-[30%] top-[60%] flex flex-col items-center">
         <div className="flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-white bg-[#2563eb] text-[11px] font-bold text-white shadow-lg">
-          집
+          수거
         </div>
         <span className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">수거 위치</span>
       </div>
@@ -701,7 +724,7 @@ function TrackingFallbackMap({
         <span className="mt-1 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600 shadow-sm">이동 중</span>
       </div>
       <div className="absolute bottom-3 left-3 right-3 rounded-2xl bg-white/90 px-3 py-2 text-[11px] font-semibold leading-4 text-slate-500 shadow-sm">
-        지도 연결 전에도 위치 흐름을 확인할 수 있는 미리보기예요. 수거 위치 {pickupLocation.lat.toFixed(4)}, {pickupLocation.lng.toFixed(4)}
+        지도 연결 전에 위치 흐름을 확인할 수 있는 미리보기예요. 수거 위치 {pickupLocation.lat.toFixed(4)}, {pickupLocation.lng.toFixed(4)}
         {crewLocation ? ` · 크루 ${crewLocation.lat.toFixed(4)}, ${crewLocation.lng.toFixed(4)}` : ""}
       </div>
     </div>
@@ -719,6 +742,6 @@ function defaultEventMessage(stepKey: (typeof progressSteps)[number]["key"]) {
     case "ARRIVED":
       return "문앞 도착 후 실물 확인과 수거가 진행됩니다.";
     case "HUB_DONE":
-      return "e-waste 공장 전달 완료 시 최종 완료 상태가 표시됩니다.";
+      return "e-waste 공장 전달 완료 후 최종 완료 상태가 표시됩니다.";
   }
 }

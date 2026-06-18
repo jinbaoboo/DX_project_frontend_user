@@ -1,7 +1,7 @@
 const backendOrigin =
   process.env.BACKEND_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://127.0.0.1:8082";
+  "http://127.0.0.1:8080";
 
 type RouteContext = {
   params: Promise<{
@@ -89,7 +89,7 @@ async function createInstantCallWithFallback(request: Request) {
 }
 
 async function proxySwapRequest(request: Request, context: RouteContext) {
-  const { path = [] } = await context.params;
+  const { path = [] } = context.params ? await context.params : {};
   const requestUrl = new URL(request.url);
   const joinedPath = path.join("/");
 
@@ -97,12 +97,14 @@ async function proxySwapRequest(request: Request, context: RouteContext) {
     return createInstantCallWithFallback(request);
   }
 
-  const targetUrl = backendUrl(`/api/swap-requests/${joinedPath}`);
+  const targetPath = joinedPath ? `/api/swap-requests/${joinedPath}` : "/api/swap-requests";
+  const targetUrl = backendUrl(targetPath);
   targetUrl.search = requestUrl.search;
 
   const headers = new Headers(request.headers);
   headers.delete("host");
   headers.delete("content-length");
+  headers.delete("expect");
 
   const init: RequestInit = {
     method: request.method,

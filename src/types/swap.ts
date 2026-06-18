@@ -109,7 +109,6 @@ export type SwapRequest = {
       lng: number;
       heading: number;
       speed: number;
-      accuracy?: number | null;
       updatedAt: string;
       accuracyMeters?: number | null;
       source?: string | null;
