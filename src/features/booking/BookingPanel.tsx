@@ -263,25 +263,38 @@ function formatKoreanDisplayName(value?: string | null) {
 }
 
 async function reverseGeocode(latitude: number, longitude: number) {
-  const params = new URLSearchParams({
-    format: "json",
-    lat: String(latitude),
-    lon: String(longitude),
-    t: String(Date.now()),
-  });
-  params.set("mode", "reverse");
-  const response = await fetch(`/api/geocode?${params.toString()}`, { cache: "no-store" });
+  let lastError: unknown;
 
-  if (!response.ok) {
-    throw new Error("reverse geocoding failed");
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const params = new URLSearchParams({
+        format: "json",
+        lat: String(latitude),
+        lon: String(longitude),
+        t: String(Date.now()),
+      });
+      params.set("mode", "reverse");
+      const response = await fetch(`/api/geocode?${params.toString()}`, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error("reverse geocoding failed");
+      }
+
+      const data = (await response.json()) as { display_name?: string | null };
+      const address = formatKoreanDisplayName(data.display_name);
+      if (!address) {
+        throw new Error("reverse geocoding returned no address");
+      }
+      return address;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) {
+        await new Promise((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+      }
+    }
   }
 
-  const data = (await response.json()) as { display_name?: string | null };
-  const address = formatKoreanDisplayName(data.display_name);
-  if (!address) {
-    throw new Error("reverse geocoding returned no address");
-  }
-  return address;
+  throw lastError instanceof Error ? lastError : new Error("reverse geocoding failed");
 }
 
 async function geocodeAddress(query: string) {
@@ -407,6 +420,7 @@ function ScheduleBooking({
   const [availabilityError, setAvailabilityError] = useState("");
   const [pinLocating, setPinLocating] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const reverseLookupSeqRef = useRef(0);
 
   const handleUseCurrentLocation = async () => {
     if (!isSecureGpsAvailable()) {
@@ -429,6 +443,8 @@ function ScheduleBooking({
         source: "browser_geolocation" as const,
       };
       setPickupCoords(nextPreciseCoords);
+      const lookupSeq = ++reverseLookupSeqRef.current;
+      const previousAddress = pickupAddress;
       setPickupAddress(ADDRESS_LOOKUP_PENDING);
       let nextAddress = "";
       try {
@@ -436,11 +452,12 @@ function ScheduleBooking({
       } catch {
         // 좌표만으로도 충분히 유효해요.
       }
+      if (lookupSeq !== reverseLookupSeqRef.current) return;
       setPickupCoords(nextPreciseCoords);
       if (nextAddress) {
         setPickupAddress(nextAddress);
       } else {
-        setPickupAddress("");
+        setPickupAddress(previousAddress || ADDRESS_LOOKUP_PENDING);
       }
     } catch {
       // 위치 권한 거부/실패 시 조용히 무시해요.
@@ -458,6 +475,8 @@ function ScheduleBooking({
     setPickupCoords(preciseCoords);
 
     let nextAddress = "";
+    const lookupSeq = ++reverseLookupSeqRef.current;
+    const previousAddress = pickupAddress;
     setPickupAddress(ADDRESS_LOOKUP_PENDING);
     try {
       nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
@@ -465,10 +484,11 @@ function ScheduleBooking({
       // 지도 중앙 위치만으로도 예약 좌표는 충분히 저장할 수 있어요.
     }
 
+    if (lookupSeq !== reverseLookupSeqRef.current) return;
     if (nextAddress) {
         setPickupAddress(nextAddress);
       } else {
-        setPickupAddress("");
+        setPickupAddress(previousAddress || ADDRESS_LOOKUP_PENDING);
       }
   };
 
@@ -862,6 +882,7 @@ function InstantCallBooking({
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [matching, setMatching] = useState(false);
+  const reverseLookupSeqRef = useRef(0);
 
   const activeCoords = pickupMethod === "gps" ? gpsCoords : manualCoords;
   const mapCoords = activeCoords ?? gpsCoords ?? manualCoords ?? defaultPreviewCoordinates;
@@ -901,6 +922,8 @@ function InstantCallBooking({
       };
 
       setGpsCoords(nextCoords);
+      const lookupSeq = ++reverseLookupSeqRef.current;
+      const previousAddress = pickupAddress;
       setPickupAddress(ADDRESS_LOOKUP_PENDING);
       let nextAddress = "";
       try {
@@ -909,13 +932,14 @@ function InstantCallBooking({
         // Reverse geocoding failure should not block GPS usage.
       }
 
+      if (lookupSeq !== reverseLookupSeqRef.current) return { coords: nextCoords, address: previousAddress };
       setGpsCoords(nextCoords);
       if (nextAddress) {
         setPickupAddress(nextAddress);
       } else {
-        setPickupAddress("");
+        setPickupAddress(previousAddress || ADDRESS_LOOKUP_PENDING);
       }
-      return { coords: nextCoords, address: nextAddress };
+      return { coords: nextCoords, address: nextAddress || previousAddress };
     } catch {
       setGpsCoords(null);
       setLocationError(copy.locationFetchError);
@@ -946,6 +970,8 @@ function InstantCallBooking({
     }
 
     let nextAddress = "";
+    const lookupSeq = ++reverseLookupSeqRef.current;
+    const previousAddress = pickupAddress;
     setPickupAddress(ADDRESS_LOOKUP_PENDING);
     try {
       nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
@@ -953,10 +979,11 @@ function InstantCallBooking({
       // Map tapping should still update coordinates even if address lookup fails.
     }
 
+    if (lookupSeq !== reverseLookupSeqRef.current) return;
     if (nextAddress) {
         setPickupAddress(nextAddress);
       } else {
-        setPickupAddress("");
+        setPickupAddress(previousAddress || ADDRESS_LOOKUP_PENDING);
       }
   };
 
@@ -1249,6 +1276,7 @@ function ManualAddressEditor({
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [inputValue, setInputValue] = useState(address);
+  const reverseLookupSeqRef = useRef(0);
 
   useEffect(() => {
     setInputValue(address);
@@ -1348,6 +1376,8 @@ function ManualAddressEditor({
       };
 
       let nextAddress = ADDRESS_LOOKUP_PENDING;
+      const lookupSeq = ++reverseLookupSeqRef.current;
+      const previousAddress = inputValue && inputValue !== ADDRESS_LOOKUP_PENDING ? inputValue : address;
       setInputValue(nextAddress);
       setSuggestions([]);
       onAddressChange(nextAddress);
@@ -1356,9 +1386,10 @@ function ManualAddressEditor({
         nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
       } catch {
         // Coordinates are still useful even if reverse geocoding fails.
-        nextAddress = "";
+        nextAddress = previousAddress || ADDRESS_LOOKUP_PENDING;
       }
 
+      if (lookupSeq !== reverseLookupSeqRef.current) return;
       setInputValue(nextAddress);
       setSuggestions([]);
       onAddressChange(nextAddress);

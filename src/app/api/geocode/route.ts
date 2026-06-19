@@ -116,6 +116,30 @@ function kakaoReverseAddress(body: unknown) {
   return first?.road_address?.address_name ?? first?.address?.address_name ?? null;
 }
 
+function kakaoRegionAddress(body: unknown) {
+  const documents = (body as {
+    documents?: {
+      region_type?: string;
+      region_1depth_name?: string;
+      region_2depth_name?: string;
+      region_3depth_name?: string;
+      region_4depth_name?: string;
+    }[];
+  }).documents ?? [];
+  const region = documents.find((item) => item.region_type === "B") ?? documents[0];
+  if (!region) return null;
+
+  return [
+    region.region_1depth_name,
+    region.region_2depth_name,
+    region.region_3depth_name,
+    region.region_4depth_name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
 function kakaoSearchResults(body: unknown) {
   const documents = (body as { documents?: { address_name?: string; x?: string; y?: string }[] }).documents ?? [];
   return documents
@@ -158,6 +182,20 @@ export async function GET(request: Request) {
     const kakaoResponse = await fetchKakao(kakaoUrl);
     if (kakaoResponse?.ok) {
       const address = kakaoReverseAddress(await kakaoResponse.json());
+      if (address) {
+        const body = { display_name: formatKoreanDisplayName(address) };
+        remember(key, body);
+        return NextResponse.json(body);
+      }
+    }
+
+    const kakaoRegionUrl = new URL("https://dapi.kakao.com/v2/local/geo/coord2regioncode.json");
+    kakaoRegionUrl.searchParams.set("x", lon);
+    kakaoRegionUrl.searchParams.set("y", lat);
+
+    const kakaoRegionResponse = await fetchKakao(kakaoRegionUrl);
+    if (kakaoRegionResponse?.ok) {
+      const address = kakaoRegionAddress(await kakaoRegionResponse.json());
       if (address) {
         const body = { display_name: formatKoreanDisplayName(address) };
         remember(key, body);
