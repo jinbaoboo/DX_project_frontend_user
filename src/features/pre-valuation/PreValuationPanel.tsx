@@ -54,7 +54,7 @@ export function PreValuationPanel({
     getDisplayableImageUrl(swapRequest?.captureEvidence?.exteriorPhotoFileName) ??
     getDisplayableImageUrl(swapRequest?.appliance.uploadedFileName);
   const imageUrl = userPhotoUrl ?? fallbackProduct.imageUrl;
-  const imageLabel = userPhotoUrl ? "촬영한 제품이에요" : `${fallbackProduct.label} 예시 이미지예요`;
+  const imageLabel = userPhotoUrl ? "촬영한 제품 이미지" : `${fallbackProduct.label} 예시 이미지`;
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export function PreValuationPanel({
           ) : (
             <div className="flex h-full flex-col items-center justify-center text-slate-400">
               <ImageIcon size={36} />
-              <p className="mt-2 text-[13px] font-medium">제품 이미지를 준비하고 있어요</p>
+              <p className="mt-2 text-[13px] font-medium">제품 이미지를 준비하고 있어요.</p>
             </div>
           )}
         </div>
@@ -94,7 +94,6 @@ export function PreValuationPanel({
               <span className="rounded-full bg-lgred/8 px-3 py-1 text-[11px] font-bold text-lgred">
                 예상 크레딧
               </span>
-              <span className="text-[10px] font-bold text-slate-400">수거 후 확정</span>
             </div>
 
             <div className="mt-4 flex items-end justify-between gap-4">
@@ -108,18 +107,14 @@ export function PreValuationPanel({
 
             <div className="mt-4 rounded-2xl bg-slate-50 px-3 py-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[12px] font-semibold text-slate-500">수거만 진행</span>
+                <span className="text-[12px] font-bold text-lgred">수거만 진행</span>
                 <span className="text-[12px] font-bold text-ink">기본 크레딧 지급</span>
               </div>
               <div className="mt-2 flex items-center justify-between gap-3">
-                <span className="text-[12px] font-semibold text-slate-500">LG 가전 구매</span>
+                <span className="text-[12px] font-bold text-lgred">LG 가전 구매</span>
                 <span className="text-[12px] font-bold text-lgred">추가 할인 가능</span>
               </div>
             </div>
-
-            <p className="mt-3 truncate text-[10px] font-semibold leading-4 text-slate-500">
-              수거 후 상태와 선택 제품에 따라 달라질 수 있어요.
-            </p>
           </div>
 
           <div className="mt-6 space-y-2">

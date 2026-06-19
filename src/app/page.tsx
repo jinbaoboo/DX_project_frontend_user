@@ -50,7 +50,7 @@ import type { CaptureSubmission } from "@/features/capture/CapturePanel";
 import { CreditPanel } from "@/features/credit/CreditPanel";
 import { AnalyzingPanel } from "@/features/inspection/AnalyzingPanel";
 import { PreValuationPanel } from "@/features/pre-valuation/PreValuationPanel";
-import { getDefaultProductIdForCategory, PurchasePanel, type ProductId } from "@/features/purchase/PurchasePanel";
+import { getDefaultProductIdForCategory, purchaseProducts, PurchasePanel, type ProductId } from "@/features/purchase/PurchasePanel";
 import { TrackingPanel } from "@/features/tracking/TrackingPanel";
 import {
   acceptPreValuation,
@@ -235,44 +235,7 @@ const ownedDevices: OwnedDevice[] = [
   },
 ];
 
-const marketProducts = [
-  {
-    id: "washer",
-    name: "LG 11Kg Front Load Washing Machine, AI Direct Drive",
-    category: "세탁기",
-    price: 62900,
-    benefit: "FHP1411Z9P 공식 LG India 제품",
-    description: "AI Direct Drive 기반의 11kg 프론트 로드 세탁기입니다.",
-    imageUrl: "https://www.lg.com/content/dam/channel/wcms/in/images/washing-machines/fhp1411z9p_apsqeil_eail_in_c/gallery/FHP1411Z9P-450x450-1.jpg",
-    productUrl: "https://www.lg.com/in/laundry/front-loading-washing-machines/fhp1411z9p/",
-    specs: ["11kg", "AI Direct Drive", "Steam+", "5 Star"],
-    icon: WashingMachine,
-  },
-  {
-    id: "fridge",
-    name: "LG 398L Double Door Refrigerator, Convertible, Wi-Fi",
-    category: "냉장고",
-    price: 74900,
-    benefit: "GL-T422VPZX 공식 LG India 제품",
-    description: "398L 용량의 컨버터블 더블도어 냉장고입니다.",
-    imageUrl: "https://www.lg.com/content/dam/channel/wcms/in/images/refrigerators/updated/new/GL-T422VPZX-450X450.jpg",
-    productUrl: "https://www.lg.com/in/refrigerators/double-door-refrigerators/gl-t422vpzx/",
-    specs: ["398L", "Double Door", "Convertible", "Wi-Fi 지원"],
-    icon: Refrigerator,
-  },
-  {
-    id: "aircon",
-    name: "LG 5 Star 1.5 Ton Split AC, Dual Inverter",
-    category: "에어컨",
-    price: 45900,
-    benefit: "US-Q19BNZE3 공식 LG India 제품",
-    description: "1.5 Ton 5 Star 등급의 Dual Inverter Split AC입니다.",
-    imageUrl: "https://www.lg.com/content/dam/channel/wcms/in/images/split-ac/updatedgallery/us-q19bnze3/new/US-Q19BNZE3-450X450.jpg",
-    productUrl: "https://www.lg.com/in/air-conditioners/split-air-conditioners/us-q19bnze3/",
-    specs: ["1.5 Ton", "5 Star", "Dual Inverter", "AI Convertible 6-in-1"],
-    icon: Wind,
-  },
-] as const;
+const marketProducts = purchaseProducts;
 
 function createPreviewSwapRequest(): SwapRequest {
   const now = new Date().toISOString();
@@ -1157,7 +1120,6 @@ export default function HomePage() {
                 />
               ) : marketOpened ? (
                 <LgMarketScreen
-                  amount={swapRequest?.credit?.amount ?? 0}
                   onBack={() => {
                     if (marketReturnStep) {
                       setMarketOpened(false);
@@ -1198,16 +1160,7 @@ export default function HomePage() {
                       setSwapItOpened(false);
                       return;
                     }
-                    if (
-                      swapStep === "reservationComplete" ||
-                      swapStep === "ongoing" ||
-                      swapStep === "tracking" ||
-                      swapStep === "credit"
-                    ) {
-                      setSwapItOpened(false);
-                      return;
-                    }
-                    setSwapStep(previousStep(swapStep));
+                    setSwapStep(previousStep(swapStep, bookingPurpose));
                   }}
                   onClose={() => {
                     resetExchangeFlow();
@@ -1341,7 +1294,7 @@ function ThinQSplashScreen() {
   );
 }
 
-function previousStep(step: SwapStep): SwapStep {
+function previousStep(step: SwapStep, bookingPurpose: BookingPurpose = "pickup"): SwapStep {
   switch (step) {
     case "capture":
       return "intro";
@@ -1352,7 +1305,7 @@ function previousStep(step: SwapStep): SwapStep {
     case "market":
       return "valuation";
     case "booking":
-      return "market";
+      return bookingPurpose === "pickup" ? "valuation" : "market";
     case "reservationComplete":
     case "ongoing":
       return "booking";
@@ -2042,11 +1995,9 @@ function ThinQHomeScreen({
 }
 
 function LgMarketScreen({
-  amount,
   onBack,
   onReturnHome,
 }: {
-  amount: number;
   onBack: () => void;
   onReturnHome: () => void;
 }) {
@@ -2063,57 +2014,82 @@ function LgMarketScreen({
         >
           <ArrowLeft size={18} />
         </button>
-        <div className="text-center">
-          <p className="text-xs font-semibold text-lgred">LG 가전 마켓</p>
-          <p className="text-[11px] font-semibold text-slate-500">Credit applied</p>
-        </div>
+        <div className="flex-1" />
         <button className="h-9 rounded-full bg-white px-3 text-[11px] font-semibold text-lgred shadow-sm" onClick={onReturnHome}>
           홈
         </button>
       </header>
 
       <div className="phone-scroll flex-1 overflow-y-auto">
-        <section className="rounded-3xl bg-lgred p-5 text-white shadow-sm">
-          <p className="text-xs font-semibold text-white/75">보유 SwapIt 크레딧</p>
-          <h1 className="mt-1 text-3xl font-bold">₩{amount.toLocaleString()}</h1>
-          <p className="mt-3 text-sm leading-6 text-white/80">선택한 LG 가전에 예상 보상 크레딧을 적용한 가격을 확인할 수 있습니다.</p>
-        </section>
-
         {selectedProduct ? (
-          <section className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <div className="flex gap-4">
+          <section className="mt-4 rounded-[28px] bg-white p-4 pb-4 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-lgred/10 px-3 py-1 text-[11px] font-bold text-lgred">{selectedProduct.category}</span>
+              {selectedProduct.sameDayEligible ? (
+                <span className="rounded-full bg-[#dff8e7] px-3 py-1 text-[11px] font-semibold text-[#1b8f45]">당일 배송 가능</span>
+              ) : null}
+            </div>
+
+            <div className="mt-3 flex gap-4">
               <ProductImage product={selectedProduct} size="large" />
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-lgred">{selectedProduct.category}</p>
-                <h2 className="mt-1 text-lg font-bold leading-snug text-ink">{selectedProduct.name}</h2>
-                <p className="mt-2 text-sm text-slate-500">{selectedProduct.description}</p>
+                <h2 className="text-lg font-bold leading-snug text-ink">{selectedProduct.name}</h2>
+                <p className="mt-2 text-sm font-medium leading-6 text-slate-500">{selectedProduct.detail}</p>
               </div>
             </div>
-            <div className="mt-4 rounded-xl bg-cloud p-3">
-              <p className="text-xs font-bold text-slate-500">제품 가격</p>
-              <p className="text-xl font-bold text-ink">₩{selectedProduct.price.toLocaleString()}</p>
-              <p className="mt-1 text-xs font-bold text-lgred">크레딧 적용가 ₩{Math.max(selectedProduct.price - amount, 0).toLocaleString()}</p>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <MarketInfoTile label="정가" value={`₩${selectedProduct.originalPrice.toLocaleString()}`} />
+              <MarketInfoTile accent label="주요 사양" value={selectedProduct.specs[0]?.value ?? "-"} />
+              <MarketInfoTile label="배송" strong value={selectedProduct.sameDayEligible ? "당일 가능" : "일반 배송"} />
             </div>
-            <button className="mt-4 h-12 w-full rounded-xl bg-lgred text-sm font-bold text-white">
+
+            <div className="mt-4 rounded-3xl bg-slate-50 p-4">
+              <p className="text-[13px] font-bold text-ink">이런 경우에 잘 맞아요</p>
+              <p className="mt-2 text-xs font-medium leading-5 text-slate-500">{selectedProduct.recommendedFor}</p>
+            </div>
+
+            <div className="mt-3 rounded-3xl bg-slate-50 p-4">
+              <p className="text-[13px] font-bold text-ink">주요 포인트</p>
+              <div className="mt-3 space-y-2">
+                {selectedProduct.highlights.map((highlight) => (
+                  <div key={highlight} className="flex gap-2 text-xs font-medium leading-5 text-slate-600">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-lgred" />
+                    <span>{highlight}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {selectedProduct.specs.map((spec) => (
+                <div key={spec.label} className="rounded-2xl bg-slate-50 px-3 py-2">
+                  <p className="text-[10px] font-semibold text-slate-500">{spec.label}</p>
+                  <p className="mt-1 text-[12px] font-bold leading-4 text-ink">{spec.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <button className="mt-4 h-12 w-full rounded-2xl bg-lgred text-sm font-bold text-white">
               구매 진행
             </button>
           </section>
         ) : (
-          <section className="mt-4 space-y-3">
-            <h2 className="text-sm font-bold text-ink">추천 LG 가전</h2>
+          <section className="space-y-3">
+            <h2 className="text-[13px] font-bold text-ink">LG 가전 마켓</h2>
             {marketProducts.map((product) => (
               <button
                 key={product.id}
-                className="flex w-full items-center gap-3 rounded-2xl bg-white p-3 text-left shadow-sm"
+                className="flex w-full items-center gap-3 rounded-[24px] bg-white p-4 text-left shadow-sm"
                 onClick={() => setSelectedProductId(product.id)}
               >
                 <ProductImage product={product} size="small" />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-semibold text-lgred">{product.category}</span>
+                  <span className="block text-xs font-bold text-lgred">{product.category}</span>
                   <span className="block truncate text-sm font-bold text-ink">{product.name}</span>
-                  <span className="mt-1 block text-xs text-slate-500">크레딧 적용가 ₩{Math.max(product.price - amount, 0).toLocaleString()}</span>
+                  <span className="mt-1 block text-xs text-slate-500">정가 ₩{product.originalPrice.toLocaleString()}</span>
                 </span>
-                <span className="rounded-full bg-lgred/10 px-3 py-1 text-xs font-semibold text-lgred">선택</span>
+                <span className="rounded-full bg-lgred/10 px-3 py-1 text-xs font-semibold text-lgred">보기</span>
               </button>
             ))}
           </section>
@@ -2130,10 +2106,39 @@ function ProductImage({
   product: (typeof marketProducts)[number];
   size?: "small" | "large";
 }) {
-  const Icon = product.icon;
   return (
-    <div className={size === "large" ? "flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl bg-lgred/10 text-lgred" : "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-lgred/10 text-lgred"}>
-      <Icon size={size === "large" ? 42 : 26} />
+    <div className={size === "large" ? "h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-slate-100" : "h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100"}>
+      <img
+        alt={product.name}
+        className="h-full w-full object-cover"
+        src={product.imageUrl}
+      />
+    </div>
+  );
+}
+
+function MarketInfoTile({
+  label,
+  value,
+  accent = false,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  strong?: boolean;
+}) {
+  return (
+    <div
+      className={
+        "rounded-2xl px-3 py-3 " +
+        (accent
+          ? "bg-[linear-gradient(135deg,#fff3f7,#ffffff)] text-lgred"
+          : "bg-slate-50 text-ink")
+      }
+    >
+      <p className={"text-[10px] font-semibold " + (accent ? "text-lgred/70" : "text-slate-500")}>{label}</p>
+      <p className={"mt-1 text-[12px] leading-4 " + (strong ? "font-black" : "font-bold")}>{value}</p>
     </div>
   );
 }
