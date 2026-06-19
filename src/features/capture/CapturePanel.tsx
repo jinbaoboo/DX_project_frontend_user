@@ -29,12 +29,15 @@ export type CaptureSubmission = {
   exteriorCondition: string;
 };
 
+export type CapturePreviewResult = Partial<RecognizedAppliance>;
+
 type CapturePanelProps = {
   fileName: string;
   loading: boolean;
   applianceId: ApplianceId;
   applianceLabel: string;
   onFileChange: (fileName: string) => void;
+  onPreviewAnalyze?: (submission: CaptureSubmission) => Promise<CapturePreviewResult | null | undefined>;
   onAnalyze: (submission: CaptureSubmission) => void;
   onCancel: () => void;
 };
@@ -277,6 +280,23 @@ function knownText(value?: string | null) {
   return text;
 }
 
+function mergeKnownRecognizedInfo(base: RecognizedAppliance, incoming?: CapturePreviewResult | null): RecognizedAppliance {
+  if (!incoming) return base;
+
+  return {
+    ...base,
+    applianceType: knownText(incoming.applianceType) || base.applianceType,
+    brand: knownText(incoming.brand) || base.brand,
+    modelName: knownText(incoming.modelName) || base.modelName,
+    capacity: knownText(incoming.capacity) || base.capacity,
+    size: knownText(incoming.size) || base.size,
+    estimatedAge: knownText(incoming.estimatedAge) || base.estimatedAge,
+    exteriorCondition: knownText(incoming.exteriorCondition) || base.exteriorCondition,
+    confidence: incoming.confidence ?? base.confidence,
+    weightKg: incoming.weightKg ?? base.weightKg,
+  };
+}
+
 const GUIDE_FRAME_PROFILES: Record<ApplianceId, { width: string; aspectRatio: string; maxHeight: string }> = {
   refrigerator: { width: "min(68vw, 260px)", aspectRatio: "9 / 16", maxHeight: "52dvh" },
   washing_machine: { width: "min(72vw, 285px)", aspectRatio: "4 / 5", maxHeight: "48dvh" },
@@ -311,6 +331,7 @@ export function CapturePanel({
   applianceId,
   applianceLabel,
   onFileChange,
+  onPreviewAnalyze,
   onAnalyze,
   onCancel,
 }: CapturePanelProps) {
@@ -402,6 +423,8 @@ export function CapturePanel({
 
     (async () => {
       try {
+        let nextInfo = recognizedInfo;
+
         // 1단계: 스티커 OCR → 브랜드 + 모델명 텍스트 추출
         const labelResult = await callLabelApi(stickerImageData);
         if (cancelled) return;
@@ -415,33 +438,56 @@ export function CapturePanel({
             const specs = await callLookupSpecsApi(mergedModelName);
             if (cancelled) return;
 
-            setRecognizedInfo((prev) => ({
-              ...prev,
-              brand: mergedBrand || specs.brand || prev.brand,
+            nextInfo = {
+              ...nextInfo,
+              brand: mergedBrand || specs.brand || nextInfo.brand,
               modelName: specs.modelName || mergedModelName,
-              capacity: specs.capacity || prev.capacity,
-              size: specs.size || prev.size,
+              capacity: specs.capacity || nextInfo.capacity,
+              size: specs.size || nextInfo.size,
               estimatedAge: specs.releaseYear
                 ? releaseYearToAge(specs.releaseYear)
                 : prevEstimatedAge,
               // API가 무게를 알고 있으면 저장 (스크랩 계산 정확도 향상)
-              weightKg: specs.weight_kg ?? prev.weightKg,
-            }));
+              weightKg: specs.weight_kg ?? nextInfo.weightKg,
+            };
           } catch {
             // 스펙 조회 실패 → OCR 결과만 반영
-            setRecognizedInfo((prev) => ({
-              ...prev,
-              brand: mergedBrand || prev.brand,
+            nextInfo = {
+              ...nextInfo,
+              brand: mergedBrand || nextInfo.brand,
               modelName: mergedModelName,
-            }));
+            };
           }
         } else {
           // 모델명 없음 → 브랜드만 보완
-          setRecognizedInfo((prev) => ({
-            ...prev,
-            brand: mergedBrand || prev.brand,
-          }));
+          nextInfo = {
+            ...nextInfo,
+            brand: mergedBrand || nextInfo.brand,
+          };
         }
+
+        if (onPreviewAnalyze && !cancelled) {
+          try {
+            const previewResult = await onPreviewAnalyze({
+              exteriorPhotoFileName,
+              exteriorPhotoUrl: exteriorPreviewUrl,
+              labelPhotoFileName,
+              labelPhotoUrl: labelPreviewUrl,
+              agreedToCreditPolicy: true,
+              applianceType: applianceId,
+              brand: nextInfo.brand,
+              modelName: nextInfo.modelName,
+              estimatedAge: nextInfo.estimatedAge,
+              exteriorCondition: nextInfo.exteriorCondition,
+            });
+            if (cancelled) return;
+            nextInfo = mergeKnownRecognizedInfo(nextInfo, previewResult);
+          } catch {
+            // 서버 미리 분석 실패 시에도 OCR/스펙 조회 결과는 유지합니다.
+          }
+        }
+
+        setRecognizedInfo(nextInfo);
       } catch {
         // OCR 완전 실패 → 기존 정보 유지
       } finally {

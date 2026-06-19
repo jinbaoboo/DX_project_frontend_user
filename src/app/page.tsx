@@ -45,7 +45,7 @@ import type { BookingPurpose, BookingSelection } from "@/features/booking/Bookin
 import { OngoingReservationPanel } from "@/features/booking/OngoingReservationPanel";
 import { ReservationCompletePanel } from "@/features/booking/ReservationCompletePanel";
 import { CapturePanel } from "@/features/capture/CapturePanel";
-import type { CaptureSubmission } from "@/features/capture/CapturePanel";
+import type { CapturePreviewResult, CaptureSubmission } from "@/features/capture/CapturePanel";
 import { CreditPanel } from "@/features/credit/CreditPanel";
 import { AnalyzingPanel } from "@/features/inspection/AnalyzingPanel";
 import { PreValuationPanel } from "@/features/pre-valuation/PreValuationPanel";
@@ -696,6 +696,23 @@ export default function HomePage() {
     },
   });
 
+  const previewCaptureAnalysis = async (submission: CaptureSubmission): Promise<CapturePreviewResult | null> => {
+    if (!demoUser) return null;
+
+    const current = swapRequest ?? (await createSwapRequestForUser(demoUser, selectedAppliance));
+    const analyzed = await analyzePhoto(current.id, submission);
+    setSwapRequest(analyzed);
+
+    return {
+      brand: analyzed.appliance.brand,
+      modelName: analyzed.appliance.modelName,
+      estimatedAge: analyzed.appliance.estimatedAge,
+      exteriorCondition: analyzed.appliance.exteriorCondition,
+      size: analyzed.appliance.sizeGrade,
+      capacity: analyzed.appliance.sizeMetric,
+    };
+  };
+
   const bookingMutation = useMutation({
     mutationFn: async (booking: BookingSelection) => {
       const requestUser =
@@ -1190,6 +1207,7 @@ export default function HomePage() {
                   }}
                   onStart={() => setSwapStep("capture")}
                   onFileChange={setFileName}
+                  onPreviewAnalyze={previewCaptureAnalysis}
                   onAnalyze={(submission) => {
                     setLastCaptureSubmission(submission);
                     setFileName(submission.exteriorPhotoFileName);
@@ -2367,6 +2385,7 @@ function SwapItFeatureScreen(props: {
   onApplianceChange: (appliance: ApplianceId) => void;
   onStart: () => void;
   onFileChange: (fileName: string) => void;
+  onPreviewAnalyze: (submission: CaptureSubmission) => Promise<CapturePreviewResult | null>;
   onAnalyze: (submission: CaptureSubmission) => void;
   onRetryAnalysis: () => void;
   onValuationNext: () => void;
@@ -2480,6 +2499,7 @@ function SwapItFeatureScreen(props: {
             fileName={props.fileName}
             loading={props.analyzeLoading}
             onFileChange={props.onFileChange}
+            onPreviewAnalyze={props.onPreviewAnalyze}
             onAnalyze={props.onAnalyze}
             onCancel={props.onBack}
           />
