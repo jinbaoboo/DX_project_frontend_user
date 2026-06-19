@@ -3,13 +3,15 @@
 import { Service3DIcon } from "@/components/Service3DIcon";
 import { getTracking, submitCrewReview } from "@/lib/api";
 import type { SwapRequest } from "@/types/swap";
-import { Star } from "lucide-react";
+import { ArrowLeft, Home, Star } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState, type ReactNode } from "react";
 
 type TrackingPanelProps = {
   swapRequest: SwapRequest | null;
   onNext: () => void;
+  onBack?: () => void;
+  onHome?: () => void;
   onMissing?: () => void;
 };
 
@@ -95,6 +97,43 @@ function formatDistance(meters?: number | null) {
   if (meters == null) return "-";
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)}km`;
   return `${Math.round(meters)}m`;
+}
+
+function distanceMetersBetween(left: Coordinates, right: Coordinates) {
+  const earthRadius = 6371000;
+  const dLat = ((right.lat - left.lat) * Math.PI) / 180;
+  const dLng = ((right.lng - left.lng) * Math.PI) / 180;
+  const lat1 = (left.lat * Math.PI) / 180;
+  const lat2 = (right.lat * Math.PI) / 180;
+  const haversine =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+  return earthRadius * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function trimPassedRoute(routePath: Coordinates[], crewLocation: Coordinates | null) {
+  if (!crewLocation || routePath.length <= 2) {
+    return routePath;
+  }
+
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  routePath.forEach((point, index) => {
+    const distance = distanceMetersBetween(crewLocation, point);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  });
+
+  if (nearestDistance > 120) {
+    return routePath;
+  }
+
+  const nextIndex = Math.min(nearestIndex + 1, routePath.length - 1);
+  return [crewLocation, ...routePath.slice(nextIndex)];
 }
 
 function minutesUntil(value?: string | null) {
@@ -247,7 +286,7 @@ function mapToViewModel(request: SwapRequest): TrackingViewModel | null {
   };
 }
 
-export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelProps) {
+export function TrackingPanel({ swapRequest, onNext, onBack, onHome, onMissing }: TrackingPanelProps) {
   const [liveRequest, setLiveRequest] = useState<SwapRequest | null>(swapRequest);
   const [error, setError] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -364,6 +403,26 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
   return (
     <section className="overflow-hidden rounded-[28px] bg-white shadow-sm">
       <div className="bg-[linear-gradient(135deg,#fff5f8,#ffffff_55%,#f8fafc)] p-4">
+        <div className="mb-5 flex items-center justify-between">
+          <button
+            aria-label="이전 화면으로 돌아가기"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow-sm ring-1 ring-slate-100 disabled:opacity-40"
+            disabled={!onBack}
+            onClick={onBack}
+            type="button"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <button
+            aria-label="홈으로 이동"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-lgred shadow-sm ring-1 ring-lgred/10 disabled:opacity-40"
+            disabled={!onHome}
+            onClick={onHome}
+            type="button"
+          >
+            <Home size={16} />
+          </button>
+        </div>
         <div>
           <div className="min-w-0">
             <span className="inline-flex rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
@@ -415,78 +474,9 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
             status={viewModel.status}
           />
 
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <InfoCard
-              icon={<Service3DIcon type="navigation" className="h-9 w-9" />}
-              title="크루 현재 위치"
-              value={viewModel.crewAddress}
-              caption={`수거지까지 ${viewModel.pickupDistanceLabel} · ${viewModel.locationMessage}`}
-            />
-            <InfoCard
-              icon={<Service3DIcon type="location" className="h-9 w-9" />}
-              title="수거 위치"
-              value={viewModel.pickupAddress}
-              caption={`크루와 거리 ${viewModel.pickupDistanceLabel}`}
-            />
-            <InfoCard
-              icon={<Service3DIcon type="truck" className="h-9 w-9" />}
-              title="예상 소요 시간"
-              value={viewModel.routeDurationLabel}
-              caption={`현재 경로 거리 ${viewModel.routeDistanceLabel}`}
-            />
-            <InfoCard
-              icon={<Service3DIcon type="warehouse" className="h-9 w-9" />}
-              title="처리 허브"
-              value={viewModel.processingCenter?.label ?? "배정 후 안내"}
-              caption={`크루와 거리 ${viewModel.hubDistanceLabel}`}
-            />
-          </div>
         </div>
 
-        <div className="mt-4 rounded-[26px] border border-slate-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-[13px] font-bold text-ink">
-            <Service3DIcon type="check" className="h-7 w-7 shrink-0" />
-            수거 진행 상태
-          </div>
-          <div className="mt-4 space-y-4">
-            {progressSteps.map((step, index) => {
-              const active = index <= currentStepIndex;
-              const event = viewModel.events[index];
-
-              return (
-                <div key={step.key} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <span
-                      className={`h-4 w-4 rounded-full border-4 ${
-                        active ? "border-lgred bg-lgred" : "border-slate-300 bg-white"
-                      }`}
-                    />
-                    {index < progressSteps.length - 1 ? (
-                      <span className={`mt-1 h-10 w-[2px] ${active ? "bg-lgred/50" : "bg-slate-200"}`} />
-                    ) : null}
-                  </div>
-                  <div className="flex-1 pb-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <p
-                        className={`text-[14px] leading-5 ${
-                          active ? "font-bold text-ink" : "font-semibold text-slate-500"
-                        }`}
-                      >
-                        {step.label}
-                      </p>
-                      <span className="text-xs font-medium text-slate-500">
-                        {formatDateTime(event?.createdAt ?? null)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[13px] font-medium leading-5 text-slate-500">
-                      {event?.message ?? defaultEventMessage(step.key)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
+        <>
           {error ? (
             <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-xs font-bold leading-5 text-amber-700">
               {error}
@@ -560,7 +550,7 @@ export function TrackingPanel({ swapRequest, onNext, onMissing }: TrackingPanelP
               </div>
             </div>
           ) : null}
-        </div>
+        </>
 
         {nextDestination ? null : (
           <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500">
@@ -625,7 +615,8 @@ function TrackingMap({
   }, [routePath]);
 
   const carPath = lockedCarPath.length > 1 ? lockedCarPath : [];
-  const hasRoadRoute = carPath.length > 1;
+  const visibleCarPath = trimPassedRoute(carPath, crewLocation);
+  const hasRoadRoute = visibleCarPath.length > 1;
 
   return (
     <div className="mt-5 overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100">
@@ -637,7 +628,7 @@ function TrackingMap({
             className="relative z-0 h-[340px] w-full"
             fitBounds
             markers={markers}
-            path={carPath}
+            path={visibleCarPath}
             routeColor={hasRoadRoute ? "#2563eb" : "#64748b"}
             routeOpacity={hasRoadRoute ? 0.78 : 0.52}
             routeWeight={hasRoadRoute ? 6 : 4}

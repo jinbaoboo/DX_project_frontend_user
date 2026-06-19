@@ -100,6 +100,12 @@ const KakaoCanvasMap = dynamic(
 const kakaoMapAppKey = process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY?.trim() ?? "";
 
 const defaultAddress = "";
+const defaultPreviewCoordinates: PickupCoordinates = {
+  lat: 37.557527,
+  lng: 126.925464,
+  accuracyMeters: 30,
+  source: "manual_pin",
+};
 const emptyMapMarkers: [] = [];
 const emptyMapPath: [] = [];
 
@@ -130,12 +136,12 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     currentLocationEyebrow: "내 위치 확인",
     currentAddressFallback: "현재 위치를 확인해 주세요",
     detailHint: "필요하면 상세 위치를 추가해 주세요.",
-    detailPlaceholder: "예: 건물 앞, 지하주차장 입구",
+    detailPlaceholder: "상세 주소를 입력해주세요",
     refreshLocationLabel: "현재 위치를 다시 확인할게요",
     matchingLabel: "빠른 수거 요청 접수 중...",
     callLoadingLabel: "빠른 수거 요청 접수 중...",
     callSubmitLabel: "바로콜 예약하기",
-    mapAdjustHint: "GPS가 어긋나면 지도에서 실제 수거 위치를 눌러 보정하세요.",
+    mapAdjustHint: "",
     mapPinLabel: "수거 위치",
     manualTitle: "수거 위치를 직접 입력해요",
     manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 수거 위치를 지정할 수 있어요.",
@@ -172,12 +178,12 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     currentLocationEyebrow: "수거 위치 확인",
     currentAddressFallback: "수거 위치를 확인해 주세요",
     detailHint: "엘리베이터, 주차, 기존 제품 위치처럼 수거에 필요한 정보를 추가해 주세요.",
-    detailPlaceholder: "예: 엘리베이터 있음, 기존 세탁기 다용도실",
+    detailPlaceholder: "상세 주소를 입력해주세요",
     refreshLocationLabel: "현재 위치를 다시 확인할게요",
     matchingLabel: "빠른 수거 요청 접수 중...",
     callLoadingLabel: "빠른 수거 요청 접수 중...",
     callSubmitLabel: "바로콜 예약하기",
-    mapAdjustHint: "GPS가 어긋나면 지도에서 실제 수거 위치를 눌러 보정하세요.",
+    mapAdjustHint: "",
     mapPinLabel: "수거 위치",
     manualTitle: "수거 위치를 직접 입력해요",
     manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 수거 위치를 지정할 수 있어요.",
@@ -302,14 +308,6 @@ export function BookingPanel({ swapRequest, loading, bookingPurpose = "pickup", 
         <Calendar3DIcon className="h-6 w-6 shrink-0" />
         {copy.title}
       </div>
-      <p className="mt-1 text-xs leading-5 text-slate-500">
-        {copy.description}
-      </p>
-      {copy.notice ? (
-        <p className="mt-3 rounded-2xl bg-lgred/5 px-4 py-3 text-xs font-bold leading-5 text-lgred">
-          {copy.notice}
-        </p>
-      ) : null}
 
       {allowInstantCall ? (
         <div className="mt-4 grid grid-cols-2 rounded-2xl bg-slate-100 p-1">
@@ -482,13 +480,14 @@ function ScheduleBooking({
   );
   const selectedSlot = availabilityByTime.get(selectedTime);
   const selectedTimeUnavailable = selectedSlot ? !selectedSlot.available || isPastTimeSlot(selectedDate, selectedTime) : false;
+  const previewCoordinates = pickupCoords ?? defaultPreviewCoordinates;
 
   return (
     <div>
       <div className="overflow-hidden rounded-3xl bg-slate-50">
         <PickupPreviewMap
           addressLabel={pickupAddress || "수거 위치를 확인해 주세요."}
-          coordinates={pickupCoords}
+          coordinates={previewCoordinates}
           onCoordinateSelect={(coordinates) => void selectScheduleMapLocation(coordinates)}
           onLocate={() => void handleUseCurrentLocation()}
           locating={pinLocating}
@@ -989,7 +988,6 @@ function InstantCallBooking({
     <div>
       <div className="overflow-hidden rounded-3xl bg-slate-50">
         <PickupPreviewMap
-          adjustHint={copy.mapAdjustHint}
           addressLabel={mapLabel}
           coordinates={activeCoords}
           onCoordinateSelect={(coordinates) => void selectMapLocation(coordinates)}
@@ -1014,12 +1012,12 @@ function InstantCallBooking({
             <div>
               <p className="text-xs font-semibold text-slate-500">{copy.currentLocationEyebrow}</p>
               <p className="mt-1 text-[15px] font-bold leading-5 text-ink">{pickupAddress || copy.currentAddressFallback}</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">{copy.detailHint}</p>
+              <p className="mt-1 text-xs font-semibold text-slate-500">상세 주소를 입력해 주세요.</p>
             </div>
           </div>
           <input
             className="mt-4 h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-[13px] font-semibold text-ink outline-none focus:border-lgred"
-            placeholder={copy.detailPlaceholder}
+            placeholder="상세 주소를 입력해주세요"
             value={detailAddress}
             onChange={(event) => setDetailAddress(event.target.value)}
           />

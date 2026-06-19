@@ -2516,6 +2516,8 @@ function SwapItFeatureScreen(props: {
           <TrackingPanel
             swapRequest={props.swapRequest}
             onNext={props.onComplete}
+            onBack={props.onBack}
+            onHome={props.onReturnHome}
             onMissing={props.onTrackingMissing}
           />
         ) : null}
