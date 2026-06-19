@@ -13,7 +13,8 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 const MIN_REQUEST_INTERVAL_MS = 1100;
 const BLOCK_BACKOFF_MS = 10 * 60 * 1000;
 const USER_AGENT = "Beyond404 local dev geocoder (contact: dev@beyond404.local)";
-const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY?.trim() ?? "";
+const KAKAO_API_KEY =
+  process.env.KAKAO_REST_API_KEY?.trim() || process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY?.trim() || "";
 
 function formatKoreanDisplayName(value?: string | null) {
   if (!value) return value ?? null;
@@ -97,14 +98,14 @@ async function fetchNominatim(url: URL) {
 }
 
 async function fetchKakao(url: URL) {
-  if (!KAKAO_REST_API_KEY) {
+  if (!KAKAO_API_KEY) {
     return null;
   }
 
   return fetch(url, {
     cache: "no-store",
     headers: {
-      Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
+      Authorization: `KakaoAK ${KAKAO_API_KEY}`,
     },
   }).catch(() => null);
 }
