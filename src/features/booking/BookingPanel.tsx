@@ -110,6 +110,8 @@ const ADDRESS_LOOKUP_PENDING = "\uC8FC\uC18C\uB97C \uD655\uC778\uD558\uB294 \uC9
 const ADDRESS_LOOKUP_FAILED = "\uC8FC\uC18C\uB97C \uD655\uC778\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694. \uC9C0\uB3C4 \uC704\uCE58\uB97C \uB2E4\uC2DC \uC870\uC815\uD574 \uC8FC\uC138\uC694.";
 const emptyMapMarkers: [] = [];
 const emptyMapPath: [] = [];
+const KOREAN_REGION_PREFIX =
+  /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충청북도|충남|충청남도|전북|전라북도|전남|전라남도|경북|경상북도|경남|경상남도|제주)/;
 
 const bookingCopies: Record<BookingPurpose, BookingCopy> = {
   pickup: {
@@ -258,6 +260,10 @@ function formatKoreanDisplayName(value?: string | null) {
     .split(",")
     .map((part) => part.trim())
     .filter((part) => part && part !== "\uB300\uD55C\uBBFC\uAD6D" && part !== "South Korea" && !/^\d{5}$/.test(part));
+
+  if (parts.length === 2 && !KOREAN_REGION_PREFIX.test(parts[0]) && KOREAN_REGION_PREFIX.test(parts[1])) {
+    return parts.join(", ");
+  }
 
   return parts.reverse().join(" ").replace(/\s+/g, " ").trim();
 }
@@ -445,7 +451,9 @@ function ScheduleBooking({
       setPickupCoords(nextPreciseCoords);
       const lookupSeq = ++reverseLookupSeqRef.current;
       const previousAddress = pickupAddress;
-      setPickupAddress(ADDRESS_LOOKUP_PENDING);
+      if (!previousAddress || previousAddress === ADDRESS_LOOKUP_FAILED) {
+        setPickupAddress(ADDRESS_LOOKUP_PENDING);
+      }
       let nextAddress = "";
       try {
         nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
@@ -477,7 +485,9 @@ function ScheduleBooking({
     let nextAddress = "";
     const lookupSeq = ++reverseLookupSeqRef.current;
     const previousAddress = pickupAddress;
-    setPickupAddress(ADDRESS_LOOKUP_PENDING);
+    if (!previousAddress || previousAddress === ADDRESS_LOOKUP_FAILED) {
+      setPickupAddress(ADDRESS_LOOKUP_PENDING);
+    }
     try {
       nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
     } catch {
@@ -924,7 +934,9 @@ function InstantCallBooking({
       setGpsCoords(nextCoords);
       const lookupSeq = ++reverseLookupSeqRef.current;
       const previousAddress = pickupAddress;
-      setPickupAddress(ADDRESS_LOOKUP_PENDING);
+      if (!previousAddress || previousAddress === ADDRESS_LOOKUP_FAILED) {
+        setPickupAddress(ADDRESS_LOOKUP_PENDING);
+      }
       let nextAddress = "";
       try {
         nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
@@ -972,7 +984,9 @@ function InstantCallBooking({
     let nextAddress = "";
     const lookupSeq = ++reverseLookupSeqRef.current;
     const previousAddress = pickupAddress;
-    setPickupAddress(ADDRESS_LOOKUP_PENDING);
+    if (!previousAddress || previousAddress === ADDRESS_LOOKUP_FAILED) {
+      setPickupAddress(ADDRESS_LOOKUP_PENDING);
+    }
     try {
       nextAddress = await reverseGeocode(nextCoords.lat, nextCoords.lng);
     } catch {
@@ -1202,6 +1216,7 @@ function PickupInteractiveMap({
           markers={emptyMapMarkers}
           onCenterChangeEnd={handleDraftCoordinateChange}
           path={emptyMapPath}
+          syncCenter
           zoom={19}
         />
       ) : (

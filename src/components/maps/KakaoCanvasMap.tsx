@@ -143,6 +143,10 @@ function boundsKey(points: Coordinate[]) {
     .join("|");
 }
 
+function sameMapCenter(left: Coordinate, right: Coordinate) {
+  return Math.abs(left.lat - right.lat) < 0.000001 && Math.abs(left.lng - right.lng) < 0.000001;
+}
+
 export function KakaoCanvasMap({
   appKey,
   center,
@@ -168,6 +172,7 @@ export function KakaoCanvasMap({
   const markerRefs = useRef<any[]>([]);
   const polylineRef = useRef<any>(null);
   const lastFitBoundsKeyRef = useRef("");
+  const programmaticCenterRef = useRef<Coordinate | null>(null);
   const onCenterChangeEndRef = useRef(onCenterChangeEnd);
   const onMapClickRef = useRef(onMapClick);
   const [loadError, setLoadError] = useState("");
@@ -207,7 +212,13 @@ export function KakaoCanvasMap({
 
         kakao.maps.event.addListener(map, "idle", () => {
           const currentCenter = map.getCenter();
-          onCenterChangeEndRef.current?.({ lat: currentCenter.getLat(), lng: currentCenter.getLng() });
+          const nextCenter = { lat: currentCenter.getLat(), lng: currentCenter.getLng() };
+          if (programmaticCenterRef.current && sameMapCenter(nextCenter, programmaticCenterRef.current)) {
+            programmaticCenterRef.current = null;
+            return;
+          }
+
+          onCenterChangeEndRef.current?.(nextCenter);
         });
 
         mapRef.current = map;
@@ -264,8 +275,13 @@ export function KakaoCanvasMap({
         lastFitBoundsKeyRef.current = nextBoundsKey;
       }
     } else if (syncCenter) {
-      map.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
-      map.setLevel(kakaoLevel);
+      const currentCenter = map.getCenter();
+      const nextCenter = { lat: center.lat, lng: center.lng };
+      const currentCoordinate = { lat: currentCenter.getLat(), lng: currentCenter.getLng() };
+      if (!sameMapCenter(currentCoordinate, nextCenter)) {
+        programmaticCenterRef.current = nextCenter;
+        map.setCenter(new kakao.maps.LatLng(center.lat, center.lng));
+      }
     }
   }, [
     center.lat,

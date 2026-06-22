@@ -15,6 +15,8 @@ const BLOCK_BACKOFF_MS = 10 * 60 * 1000;
 const USER_AGENT = "Beyond404 local dev geocoder (contact: dev@beyond404.local)";
 const KAKAO_API_KEY =
   process.env.KAKAO_REST_API_KEY?.trim() || process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY?.trim() || "";
+const KOREAN_REGION_PREFIX =
+  /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충청북도|충남|충청남도|전북|전라북도|전남|전라남도|경북|경상북도|경남|경상남도|제주)/;
 
 function formatKoreanDisplayName(value?: string | null) {
   if (!value) return value ?? null;
@@ -28,6 +30,10 @@ function formatKoreanDisplayName(value?: string | null) {
     .split(",")
     .map((part) => part.trim())
     .filter((part) => part && part !== "\uB300\uD55C\uBBFC\uAD6D" && part !== "South Korea" && !/^\d{5}$/.test(part));
+
+  if (parts.length === 2 && !KOREAN_REGION_PREFIX.test(parts[0]) && KOREAN_REGION_PREFIX.test(parts[1])) {
+    return parts.join(", ");
+  }
 
   return parts.reverse().join(" ").replace(/\s+/g, " ").trim();
 }
@@ -152,6 +158,31 @@ function kakaoSearchResults(body: unknown) {
     .filter((item) => item.display_name && item.lat && item.lon);
 }
 
+function kakaoKeywordSearchResults(body: unknown) {
+  const documents =
+    (body as {
+      documents?: {
+        address_name?: string;
+        place_name?: string;
+        road_address_name?: string;
+        x?: string;
+        y?: string;
+      }[];
+    }).documents ?? [];
+
+  return documents
+    .map((item) => {
+      const address = item.road_address_name || item.address_name || "";
+      const placeName = item.place_name || "";
+      return {
+        display_name: [placeName, address].filter(Boolean).join(", "),
+        lat: item.y ?? "",
+        lon: item.x ?? "",
+      };
+    })
+    .filter((item) => item.display_name && item.lat && item.lon);
+}
+
 function coordinateKey(value: string | null) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return null;
@@ -244,6 +275,19 @@ export async function GET(request: Request) {
         ...item,
         display_name: formatKoreanDisplayName(item.display_name),
       }));
+      if (body.length > 0) {
+        remember(key, body);
+        return NextResponse.json(body);
+      }
+    }
+
+    const kakaoKeywordUrl = new URL("https://dapi.kakao.com/v2/local/search/keyword.json");
+    kakaoKeywordUrl.searchParams.set("query", query);
+    kakaoKeywordUrl.searchParams.set("size", String(limit));
+
+    const kakaoKeywordResponse = await fetchKakao(kakaoKeywordUrl);
+    if (kakaoKeywordResponse?.ok) {
+      const body = kakaoKeywordSearchResults(await kakaoKeywordResponse.json());
       if (body.length > 0) {
         remember(key, body);
         return NextResponse.json(body);
