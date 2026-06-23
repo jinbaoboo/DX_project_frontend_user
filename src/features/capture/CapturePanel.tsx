@@ -1191,15 +1191,18 @@ function ReviewView({
     const spec = modelSpecValidation.spec;
     const nextBrand = knownText(recognizedInfo.brand) || knownText(spec.brand);
     const nextModelName = knownText(spec.modelName) || recognizedInfo.modelName;
+    const nextApplianceType = applianceLabel;
     const nextWeightKg = spec.weight_kg ?? recognizedInfo.weightKg;
 
     if (
+      nextApplianceType !== recognizedInfo.applianceType ||
       nextBrand !== recognizedInfo.brand ||
       nextModelName !== recognizedInfo.modelName ||
       nextWeightKg !== recognizedInfo.weightKg
     ) {
       onChange({
         ...recognizedInfo,
+        applianceType: nextApplianceType,
         brand: nextBrand || recognizedInfo.brand,
         modelName: nextModelName,
         capacity: spec.capacity || recognizedInfo.capacity,
@@ -1208,7 +1211,7 @@ function ReviewView({
         weightKg: nextWeightKg,
       });
     }
-  }, [modelSpecValidation, onChange, recognizedInfo]);
+  }, [applianceLabel, modelSpecValidation, onChange, recognizedInfo]);
 
   const credit = calculateFinalCredit(
     recognizedInfo.applianceType,
@@ -1219,10 +1222,15 @@ function ReviewView({
     recognizedInfo.weightKg,
   );
   const ready = Boolean(exteriorPhotoFileName && labelPhotoFileName);
-  const hasUnknownRequiredInfo = !knownText(recognizedInfo.brand) || !knownText(recognizedInfo.modelName);
+  const matchedSpec = modelSpecValidation.status === "matched" ? modelSpecValidation.spec : null;
+  const effectiveBrand = knownText(recognizedInfo.brand) || knownText(matchedSpec?.brand);
+  const effectiveModelName = knownText(recognizedInfo.modelName) || knownText(matchedSpec?.modelName);
+  const hasUnknownRequiredInfo = !effectiveBrand || !effectiveModelName;
   const recognizedApplianceType = knownText(recognizedInfo.applianceType);
   const hasApplianceTypeMismatch =
-    Boolean(recognizedApplianceType) && normalizeApplianceId(recognizedApplianceType) !== selectedApplianceId;
+    modelSpecValidation.status !== "matched" &&
+    Boolean(recognizedApplianceType) &&
+    normalizeApplianceId(recognizedApplianceType) !== selectedApplianceId;
   const hasModelSpecMismatch = modelSpecValidation.status === "mismatched";
   const modelSpecTypeLabel =
     modelSpecValidation.status === "mismatched"
