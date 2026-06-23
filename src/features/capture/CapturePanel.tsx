@@ -3,8 +3,8 @@
 import {
   Camera,
   CheckCircle2,
+  Home,
   Loader2,
-  RotateCcw,
   ScanLine,
   ShieldCheck,
   X,
@@ -40,6 +40,7 @@ type CapturePanelProps = {
   onPreviewAnalyze?: (submission: CaptureSubmission) => Promise<CapturePreviewResult | null | undefined>;
   onAnalyze: (submission: CaptureSubmission) => void;
   onCancel: () => void;
+  onHome?: () => void;
 };
 
 type RecognizedAppliance = {
@@ -53,6 +54,23 @@ type RecognizedAppliance = {
   confidence: number;
   weightKg?: number | null; // actual weight from API or DB
 };
+
+type LookupSpecResult = {
+  brand?: string;
+  modelName?: string;
+  applianceType?: string;
+  capacity?: string;
+  size?: string;
+  releaseYear?: number;
+  weight_kg?: number;
+};
+
+type ModelSpecValidation =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "matched"; spec: LookupSpecResult }
+  | { status: "mismatched"; spec: LookupSpecResult }
+  | { status: "not_found" };
 
 const targetDescriptions: Record<
   CaptureTarget,
@@ -173,6 +191,13 @@ function getWeightForCalc(
 }
 
 function normalizeApplianceId(applianceType: string): ApplianceId {
+  const normalized = applianceType.trim().toLowerCase();
+  if (normalized === "washing_machine") return "washing_machine";
+  if (normalized === "refrigerator") return "refrigerator";
+  if (normalized === "air_conditioner") return "air_conditioner";
+  if (normalized === "microwave") return "microwave";
+  if (normalized === "tv") return "tv";
+  if (normalized === "air_purifier") return "air_purifier";
   if (applianceType === "\uB0C9\uC7A5\uACE0") return "refrigerator";
   if (applianceType === "\uC5D0\uC5B4\uCEE8") return "air_conditioner";
   if (applianceType === "\uC804\uC790\uB808\uC778\uC9C0") return "microwave";
@@ -180,6 +205,25 @@ function normalizeApplianceId(applianceType: string): ApplianceId {
   if (applianceType === "\uACF5\uAE30\uCCAD\uC815\uAE30") return "air_purifier";
   return "washing_machine";
 }
+
+function applianceLabelById(applianceId: ApplianceId) {
+  switch (applianceId) {
+    case "refrigerator":
+      return "냉장고";
+    case "air_conditioner":
+      return "에어컨";
+    case "microwave":
+      return "전자레인지";
+    case "tv":
+      return "TV";
+    case "air_purifier":
+      return "공기청정기";
+    case "washing_machine":
+    default:
+      return "세탁기";
+  }
+}
+
 function calculateScrapValue(applianceType: string, weight: number) {
   const ratios = METAL_RATIOS[normalizeApplianceId(applianceType)];
   return Math.round(
@@ -250,15 +294,7 @@ async function callLabelApi(imageData: string): Promise<{ brand?: string; modelN
   return postVisionApi<{ brand?: string; modelName?: string }>("/api/analyze-label", imageData);
 }
 
-async function callLookupSpecsApi(modelName: string): Promise<{
-  brand?: string;
-  modelName?: string;
-  applianceType?: string;
-  capacity?: string;
-  size?: string;
-  releaseYear?: number;
-  weight_kg?: number;
-}> {
+async function callLookupSpecsApi(modelName: string): Promise<LookupSpecResult> {
   const response = await fetch("/api/lookup-specs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -333,6 +369,7 @@ export function CapturePanel({
   onPreviewAnalyze,
   onAnalyze,
   onCancel,
+  onHome,
 }: CapturePanelProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -644,7 +681,12 @@ export function CapturePanel({
     const video = videoRef.current;
     video.srcObject = stream;
     video.muted = true;
+    video.controls = false;
+    video.disablePictureInPicture = true;
     video.playsInline = true;
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+    video.setAttribute("controlsList", "nodownload nofullscreen noremoteplayback");
     await video.play();
 
     if (!video.videoWidth || !video.videoHeight) {
@@ -854,9 +896,11 @@ export function CapturePanel({
         labelPhotoFileName={labelPhotoFileName}
         exteriorPreviewUrl={exteriorPreviewUrl}
         labelPreviewUrl={labelPreviewUrl}
+        selectedApplianceId={applianceId}
         recognizedInfo={recognizedInfo}
         onChange={setRecognizedInfo}
         onRetake={resetAllCaptures}
+        onHome={onHome}
         onAnalyze={() =>
           onAnalyze({
             exteriorPhotoFileName,
@@ -881,12 +925,16 @@ export function CapturePanel({
         <div className="absolute inset-0">
           <video
             ref={videoRef}
-            className={`pointer-events-none h-full w-full select-none object-cover [backdrop-filter:none] [filter:none] ${
+            className={`capture-camera-video pointer-events-none h-full w-full select-none object-cover [backdrop-filter:none] [filter:none] ${
               cameraReady ? "opacity-100" : "opacity-0"
             }`}
             autoPlay
+            controls={false}
+            disablePictureInPicture
             muted
             playsInline
+            controlsList="nodownload nofullscreen noremoteplayback"
+            onContextMenu={(event) => event.preventDefault()}
             style={{ filter: "none", backdropFilter: "none" }}
           />
           {!cameraReady && <CameraFallback target="label" />}
@@ -921,14 +969,7 @@ export function CapturePanel({
           </div>
         ) : null}
 
-        <div className="absolute bottom-[max(24px,env(safe-area-inset-bottom))] left-0 right-0 z-20 flex items-center justify-center gap-9">
-          <button
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white"
-            onClick={startCamera}
-            type="button"
-          >
-            <RotateCcw size={21} />
-          </button>
+        <div className="absolute bottom-[max(24px,env(safe-area-inset-bottom))] left-0 right-0 z-20 flex items-center justify-center">
           <button
             className="flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white bg-white/15 p-1 shadow-xl shadow-black/35"
             onClick={handleStickerCapture}
@@ -938,7 +979,6 @@ export function CapturePanel({
               <Camera size={31} />
             </span>
           </button>
-          <div className="h-11 w-11" />
         </div>
       </section>
     );
@@ -967,10 +1007,14 @@ export function CapturePanel({
       <div className="absolute inset-0">
         <video
           ref={videoRef}
-          className={`pointer-events-none h-full w-full select-none object-cover ${cameraReady ? "opacity-100" : "opacity-0"}`}
+          className={`capture-camera-video pointer-events-none h-full w-full select-none object-cover ${cameraReady ? "opacity-100" : "opacity-0"}`}
           autoPlay
+          controls={false}
+          disablePictureInPicture
           muted
           playsInline
+          controlsList="nodownload nofullscreen noremoteplayback"
+          onContextMenu={(event) => event.preventDefault()}
         />
         {!cameraReady ? <CameraFallback target={target} /> : null}
         <div className="pointer-events-none absolute inset-0 bg-black/12" />
@@ -1002,14 +1046,7 @@ export function CapturePanel({
         </div>
       ) : null}
 
-      <div className="absolute bottom-[max(24px,env(safe-area-inset-bottom))] left-0 right-0 z-20 flex items-center justify-center gap-9">
-        <button
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white"
-          onClick={() => void startCamera()}
-          type="button"
-        >
-          <RotateCcw size={20} />
-        </button>
+      <div className="absolute bottom-[max(24px,env(safe-area-inset-bottom))] left-0 right-0 z-20 flex items-center justify-center">
         <button
           className="flex h-[74px] w-[74px] items-center justify-center rounded-full border-4 border-white bg-white/15 p-1 shadow-xl shadow-black/35"
           onClick={handleCapture}
@@ -1019,7 +1056,6 @@ export function CapturePanel({
             <Camera size={30} />
           </span>
         </button>
-        <div className="h-11 w-11" />
       </div>
     </section>
   );
@@ -1087,9 +1123,11 @@ function ReviewView({
   labelPhotoFileName,
   exteriorPreviewUrl,
   labelPreviewUrl,
+  selectedApplianceId,
   recognizedInfo,
   onChange,
   onRetake,
+  onHome,
   onAnalyze,
 }: {
   applianceLabel: string;
@@ -1097,14 +1135,81 @@ function ReviewView({
   labelPhotoFileName: string;
   exteriorPreviewUrl: string;
   labelPreviewUrl: string;
+  selectedApplianceId: ApplianceId;
   recognizedInfo: RecognizedAppliance;
   onChange: (value: RecognizedAppliance) => void;
   onRetake: () => void;
+  onHome?: () => void;
   onAnalyze: () => void;
 }) {
   const [showModal, setShowModal] = useState(false);
+  const [modelSpecValidation, setModelSpecValidation] = useState<ModelSpecValidation>({ status: "idle" });
   const previewUrl = exteriorPreviewUrl || labelPreviewUrl;
   const fileName = exteriorPhotoFileName || labelPhotoFileName;
+  const modelForValidation = knownText(recognizedInfo.modelName);
+
+  useEffect(() => {
+    let live = true;
+
+    if (!modelForValidation) {
+      setModelSpecValidation({ status: "idle" });
+      return () => {
+        live = false;
+      };
+    }
+
+    setModelSpecValidation({ status: "checking" });
+
+    const timer = window.setTimeout(() => {
+      callLookupSpecsApi(modelForValidation)
+        .then((spec) => {
+          if (!live) return;
+
+          const specType = knownText(spec.applianceType);
+          if (!specType) {
+            setModelSpecValidation({ status: "not_found" });
+            return;
+          }
+
+          const matchesSelectedType = normalizeApplianceId(specType) === selectedApplianceId;
+          setModelSpecValidation(matchesSelectedType ? { status: "matched", spec } : { status: "mismatched", spec });
+        })
+        .catch(() => {
+          if (live) setModelSpecValidation({ status: "not_found" });
+        });
+    }, 350);
+
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [modelForValidation, selectedApplianceId]);
+
+  useEffect(() => {
+    if (modelSpecValidation.status !== "matched") return;
+
+    const spec = modelSpecValidation.spec;
+    const nextBrand = knownText(recognizedInfo.brand) || knownText(spec.brand);
+    const nextModelName = knownText(spec.modelName) || recognizedInfo.modelName;
+    const nextWeightKg = spec.weight_kg ?? recognizedInfo.weightKg;
+
+    if (
+      nextBrand !== recognizedInfo.brand ||
+      nextModelName !== recognizedInfo.modelName ||
+      nextWeightKg !== recognizedInfo.weightKg
+    ) {
+      onChange({
+        ...recognizedInfo,
+        brand: nextBrand || recognizedInfo.brand,
+        modelName: nextModelName,
+        capacity: spec.capacity || recognizedInfo.capacity,
+        size: spec.size || recognizedInfo.size,
+        estimatedAge: spec.releaseYear ? releaseYearToAge(spec.releaseYear) : recognizedInfo.estimatedAge,
+        weightKg: nextWeightKg,
+      });
+    }
+  }, [modelSpecValidation, onChange, recognizedInfo]);
+
   const credit = calculateFinalCredit(
     recognizedInfo.applianceType,
     recognizedInfo.size,
@@ -1114,6 +1219,17 @@ function ReviewView({
     recognizedInfo.weightKg,
   );
   const ready = Boolean(exteriorPhotoFileName && labelPhotoFileName);
+  const hasUnknownRequiredInfo = !knownText(recognizedInfo.brand) || !knownText(recognizedInfo.modelName);
+  const recognizedApplianceType = knownText(recognizedInfo.applianceType);
+  const hasApplianceTypeMismatch =
+    Boolean(recognizedApplianceType) && normalizeApplianceId(recognizedApplianceType) !== selectedApplianceId;
+  const hasModelSpecMismatch = modelSpecValidation.status === "mismatched";
+  const modelSpecTypeLabel =
+    modelSpecValidation.status === "mismatched"
+      ? applianceLabelById(normalizeApplianceId(modelSpecValidation.spec.applianceType ?? ""))
+      : "";
+  const modelSpecIsUnavailable = modelSpecValidation.status === "checking" || modelSpecValidation.status === "not_found";
+  const shouldBlockAnalyze = hasUnknownRequiredInfo || hasApplianceTypeMismatch || hasModelSpecMismatch || modelSpecIsUnavailable;
 
   return (
     <section className="phone-scroll flex h-full min-h-0 flex-col overflow-y-auto bg-white px-5 pb-0 pt-16 shadow-sm">
@@ -1134,9 +1250,21 @@ function ReviewView({
         <div>
           <h2 className="mt-1 text-xl font-bold text-ink">{"AI\uAC00 \uBD84\uC11D\uD55C \uACB0\uACFC\uC608\uC694"}</h2>
         </div>
-        <span className="shrink-0 rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
-          {applianceLabel}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          {onHome ? (
+            <button
+              aria-label="홈으로 이동"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-100 bg-white text-lgred shadow-sm"
+              onClick={onHome}
+              type="button"
+            >
+              <Home size={16} />
+            </button>
+          ) : null}
+          <span className="rounded-full bg-lgred/10 px-3 py-1 text-xs font-bold text-lgred">
+            {applianceLabel}
+          </span>
+        </div>
       </div>
 
       <div className="mt-4 flex items-center justify-between">
@@ -1167,11 +1295,52 @@ function ReviewView({
           <div>
             <p className="text-sm font-bold text-ink">{"\uC815\uBCF4 \uD655\uC778 \uD6C4 \uAC10\uC815\uC744 \uC9C4\uD589\uD574\uC694"}</p>
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
-              {"AI\uAC00 \uBD84\uC11D\uD55C \uACB0\uACFC\uC608\uC694. \uD2C0\uB9B0 \uB0B4\uC6A9\uC740 \uC9C1\uC811 \uC218\uC815\uD560 \uC218 \uC788\uC5B4\uC694."}
+              {"AI 분석 결과예요. 틀린 내용은 수정할 수 있어요."}
             </p>
           </div>
         </div>
       </div>
+
+      {modelSpecValidation.status === "checking" ? (
+        <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-sm font-black text-slate-700">모델 정보를 확인하는 중이에요.</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            입력한 모델명이 제품 DB와 일치하는지 확인하고 있어요.
+          </p>
+        </div>
+      ) : hasModelSpecMismatch ? (
+        <div className="mt-3 rounded-2xl border border-lgred/20 bg-lgred/5 px-4 py-3">
+          <p className="text-sm font-black text-lgred">
+            DB 기준 {modelSpecTypeLabel} 제품이에요.
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            선택한 {applianceLabel}와 일치해야 감정할 수 있어요.
+          </p>
+        </div>
+      ) : modelSpecValidation.status === "not_found" && modelForValidation ? (
+        <div className="mt-3 rounded-2xl border border-lgred/20 bg-lgred/5 px-4 py-3">
+          <p className="text-sm font-black text-lgred">입력한 모델을 제품 DB에서 찾지 못했어요.</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            모델명을 다시 확인하거나 라벨이 잘 보이도록 다시 촬영해 주세요.
+          </p>
+        </div>
+      ) : hasApplianceTypeMismatch ? (
+        <div className="mt-3 rounded-2xl border border-lgred/20 bg-lgred/5 px-4 py-3">
+          <p className="text-sm font-black text-lgred">
+            촬영한 제품이 {applianceLabel}가 아닌 것 같아요.
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            처음 선택한 가전 종류와 사진에서 인식된 제품이 달라요. 제품을 다시 확인한 뒤 촬영해 주세요.
+          </p>
+        </div>
+      ) : hasUnknownRequiredInfo ? (
+        <div className="mt-3 rounded-2xl border border-lgred/20 bg-lgred/5 px-4 py-3">
+          <p className="text-sm font-black text-lgred">브랜드와 모델명을 확인하지 못했어요.</p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            라벨의 모델명이 잘 보이도록 다시 촬영해 주세요.
+          </p>
+        </div>
+      ) : null}
 
       <div className="mt-4 space-y-3">
         <InfoInput label={"\uAC00\uC804 \uC885\uB958"} value={recognizedInfo.applianceType} readOnly onChange={(value) => onChange({ ...recognizedInfo, applianceType: value })} />
@@ -1199,18 +1368,20 @@ function ReviewView({
         </div>
       )}
 
-      <div className="sticky bottom-0 -mx-5 mt-5 grid grid-cols-2 gap-2 bg-white/95 px-5 pb-5 pt-3 shadow-[0_-14px_28px_rgba(255,255,255,.92)]">
+      <div className={`sticky bottom-0 -mx-5 mt-5 grid gap-2 bg-white/95 px-5 pb-5 pt-3 shadow-[0_-14px_28px_rgba(255,255,255,.92)] ${shouldBlockAnalyze ? "grid-cols-1" : "grid-cols-2"}`}>
         <button className="h-12 rounded-xl border border-lgred/20 bg-white text-sm font-bold text-lgred" onClick={onRetake} type="button">
           {"\uB2E4\uC2DC \uCD2C\uC601"}
         </button>
-        <button
-          className="h-12 rounded-xl bg-lgred px-2 text-[13px] font-bold text-white disabled:bg-slate-300"
-          disabled={!ready}
-          onClick={onAnalyze}
-          type="button"
-        >
-          {"\uC815\uBCF4 \uD655\uC778 \uD6C4 \uAC10\uC815\uD558\uAE30"}
-        </button>
+        {!shouldBlockAnalyze ? (
+          <button
+            className="h-12 rounded-xl bg-lgred px-2 text-[13px] font-bold text-white disabled:bg-slate-300"
+            disabled={!ready}
+            onClick={onAnalyze}
+            type="button"
+          >
+            {"\uC815\uBCF4 \uD655\uC778 \uD6C4 \uAC10\uC815\uD558\uAE30"}
+          </button>
+        ) : null}
       </div>
     </section>
   );

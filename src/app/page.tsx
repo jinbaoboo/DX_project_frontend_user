@@ -57,12 +57,12 @@ import {
   cancelSwapRequest,
   completeFinalValuation,
   confirmBooking,
-  createInstantCallForUser,
   createSwapRequestForUser,
   firebaseLogin,
   getLatestSwapRequest,
   getSwapRequest,
   issueCredit,
+  requestInstantCall,
   updateAppliance,
   type DemoUser,
 } from "@/lib/api";
@@ -796,8 +796,8 @@ export default function HomePage() {
           bookingTime: booking.bookingTime,
         });
 
-      const submitFreshInstantCall = () =>
-        createInstantCallForUser(requestUser, selectedAppliance, {
+      const submitInstantCall = (request: SwapRequest) =>
+        requestInstantCall(request.id, {
           address: booking.pickupAddress ?? "A-12, New Delhi demo street",
           detailAddress: booking.detailAddress ?? "Near LG demo pickup point",
           pickupLat,
@@ -810,7 +810,13 @@ export default function HomePage() {
 
       try {
         if (booking.mode === "call") {
-          const data = await submitFreshInstantCall();
+          if (!bookingSwapRequest || bookingSwapRequest.id < 0) {
+            bookingSwapRequest = await createReadySwapRequest();
+          } else if (bookingSwapRequest.status !== "PRE_VALUATION_ACCEPTED") {
+            bookingSwapRequest = await acceptPreValuation(bookingSwapRequest.id);
+          }
+
+          const data = await submitInstantCall(bookingSwapRequest);
           return { data, booking };
         }
 
@@ -828,7 +834,9 @@ export default function HomePage() {
         }
 
         const freshRequest = await createReadySwapRequest();
-        const data = await submitScheduledBooking(freshRequest);
+        const data = booking.mode === "call"
+          ? await submitInstantCall(freshRequest)
+          : await submitScheduledBooking(freshRequest);
         return { data, booking };
       }
     },
@@ -1235,6 +1243,7 @@ export default function HomePage() {
                       : ""
                   }
                   creditLoading={creditMutation.isPending || issueCreditMutation.isPending}
+                  canCancelReservation={!isCrewAcceptedSwapRequest(activeReservationRequest ?? swapRequest)}
                   onBack={() => {
                     if (swapStep === "intro") {
                       setSwapItOpened(false);
@@ -1917,16 +1926,8 @@ function ThinQHomeScreen({
   };
 
   const goBackHomeTab = () => {
-    setTabHistory((currentHistory) => {
-      if (currentHistory.length === 0) {
-        setActiveHomeTab("home");
-        return currentHistory;
-      }
-
-      const previousTab = currentHistory[currentHistory.length - 1];
-      setActiveHomeTab(previousTab);
-      return currentHistory.slice(0, -1);
-    });
+    setActiveHomeTab("home");
+    setTabHistory([]);
   };
 
   return (
@@ -2436,6 +2437,7 @@ function SwapItFeatureScreen(props: {
   bookingError: string;
   bookingPurpose: BookingPurpose;
   creditLoading: boolean;
+  canCancelReservation: boolean;
   onBack: () => void;
   onClose: () => void;
   onNewRequest: () => void;
@@ -2559,6 +2561,7 @@ function SwapItFeatureScreen(props: {
             onPreviewAnalyze={props.onPreviewAnalyze}
             onAnalyze={props.onAnalyze}
             onCancel={props.onBack}
+            onHome={props.onReturnHome}
           />
         ) : null}
         {props.step === "analyzing" ? (
@@ -2612,6 +2615,7 @@ function SwapItFeatureScreen(props: {
             reservationLabel={props.reservationLabel}
             reservationAddress={props.reservationAddress}
             status={props.homeSwapStatus}
+            canCancel={props.canCancelReservation}
             onChange={props.onChangeReservation}
             onCancel={props.onCancelReservation}
             onOpenCredit={props.onOpenCredit}

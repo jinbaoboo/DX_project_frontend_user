@@ -7,7 +7,7 @@ import { Calendar3DIcon } from "@/components/Calendar3DIcon";
 import { Service3DIcon } from "@/components/Service3DIcon";
 import { Loader2, MapPin, X } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 type BookingPanelProps = {
@@ -512,10 +512,11 @@ function ScheduleBooking({
         const result = await getBookingAvailability(selectedDate);
         if (!active) return;
         setAvailability(result.slots);
-        const nextAvailable = result.slots.find((slot) => slot.available)?.time ?? "";
+        const nextAvailable = result.slots.find((slot) => slot.available && !isPastTimeSlot(selectedDate, slot.time))?.time ?? "";
         setSelectedTime((currentSelectedTime) => {
           const selectedSlot = result.slots.find((slot) => slot.time === currentSelectedTime);
-          return !selectedSlot?.available && nextAvailable ? nextAvailable : currentSelectedTime;
+          const selectedUnavailable = !selectedSlot?.available || isPastTimeSlot(selectedDate, currentSelectedTime);
+          return selectedUnavailable && nextAvailable ? nextAvailable : currentSelectedTime;
         });
       } catch {
         if (!active) return;
@@ -658,7 +659,7 @@ function ScheduleTimeSheet({
   const hours = Array.from(new Set(timeSlots.map((time) => time.slice(0, 2))));
   const minutes = ["00", "30"];
 
-  const isTimeUnavailable = (time: string) => {
+  const isTimeUnavailable = useCallback((time: string) => {
     if (!timeSlots.includes(time)) return true;
     if (isPastTimeSlot(selectedDate, time)) return true;
     const minute = Number(time.slice(3, 5));
@@ -666,7 +667,7 @@ function ScheduleTimeSheet({
     const availabilityKey = `${time.slice(0, 2)}:${availabilityMinute}`;
     const slot = availabilityByTime.get(availabilityKey);
     return availabilityLoading || (slot ? !slot.available : false);
-  };
+  }, [availabilityByTime, availabilityLoading, selectedDate]);
 
   const setDatePart = (nextPart: Partial<typeof selectedDateParts>) => {
     const nextYear = nextPart.year ?? selectedDateParts.year;
@@ -695,6 +696,15 @@ function ScheduleTimeSheet({
       onTimeChange(nextTime);
     }
   };
+
+  useEffect(() => {
+    if (!selectedTime || !isTimeUnavailable(selectedTime)) return;
+
+    const nextAvailable = timeSlots.find((time) => !isTimeUnavailable(time));
+    if (nextAvailable && nextAvailable !== selectedTime) {
+      onTimeChange(nextAvailable);
+    }
+  }, [isTimeUnavailable, onTimeChange, selectedTime]);
 
   useEffect(() => {
     setPortalTarget(document.getElementById("swapit-phone-viewport"));
@@ -832,7 +842,6 @@ function WheelColumn({
     const listCenter = listRect.top + listRect.height / 2;
     const buttons = Array.from(list.querySelectorAll<HTMLButtonElement>("[data-wheel-value]"));
     const nearest = buttons
-      .filter((button) => button.dataset.wheelDisabled !== "true")
       .map((button) => {
         const rect = button.getBoundingClientRect();
         return {
@@ -841,6 +850,12 @@ function WheelColumn({
         };
       })
       .sort((left, right) => left.distance - right.distance)[0]?.button;
+
+    if (nearest?.dataset.wheelDisabled === "true") {
+      const active = list.querySelector("[data-wheel-active='true']");
+      active?.scrollIntoView({ block: "center", behavior: "smooth" });
+      return;
+    }
 
     const nextValue = nearest?.dataset.wheelValue;
     if (nextValue && nextValue !== selectedValue) {

@@ -17,6 +17,7 @@ type OngoingReservationPanelProps = {
   reservationLabel: string;
   reservationAddress: string;
   status: ReviewStatus;
+  canCancel?: boolean;
   onChange: () => void;
   onCancel: () => void;
   onOpenCredit: () => void;
@@ -26,6 +27,7 @@ export function OngoingReservationPanel({
   bookingPurpose = "pickup",
   reservationLabel,
   reservationAddress,
+  canCancel = true,
   onChange,
   onCancel,
 }: OngoingReservationPanelProps) {
@@ -62,7 +64,7 @@ export function OngoingReservationPanel({
         />
       </div>
 
-      <div className="mt-auto grid grid-cols-2 gap-2 pt-4">
+      <div className={`mt-auto grid gap-2 pt-4 ${canCancel ? "grid-cols-2" : "grid-cols-1"}`}>
         <button
           className="h-12 rounded-xl border border-lgred/20 bg-white text-[13px] font-bold text-lgred"
           onClick={onChange}
@@ -70,13 +72,15 @@ export function OngoingReservationPanel({
         >
           예약을 변경할게요
         </button>
-        <button
-          className="h-12 rounded-xl bg-slate-100 text-[13px] font-semibold text-slate-500"
-          onClick={onCancel}
-          type="button"
-        >
-          예약을 취소할게요
-        </button>
+        {canCancel ? (
+          <button
+            className="h-12 rounded-xl bg-slate-100 text-[13px] font-semibold text-slate-500"
+            onClick={onCancel}
+            type="button"
+          >
+            예약을 취소할게요
+          </button>
+        ) : null}
       </div>
     </section>
   );
