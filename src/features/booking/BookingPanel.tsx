@@ -822,15 +822,62 @@ function WheelColumn({
   onSelect: (value: string) => void;
 }) {
   const listRef = useRef<HTMLDivElement | null>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+
+  const selectCenteredOption = () => {
+    const list = listRef.current;
+    if (!list) return;
+
+    const listRect = list.getBoundingClientRect();
+    const listCenter = listRect.top + listRect.height / 2;
+    const buttons = Array.from(list.querySelectorAll<HTMLButtonElement>("[data-wheel-value]"));
+    const nearest = buttons
+      .filter((button) => button.dataset.wheelDisabled !== "true")
+      .map((button) => {
+        const rect = button.getBoundingClientRect();
+        return {
+          button,
+          distance: Math.abs(rect.top + rect.height / 2 - listCenter),
+        };
+      })
+      .sort((left, right) => left.distance - right.distance)[0]?.button;
+
+    const nextValue = nearest?.dataset.wheelValue;
+    if (nextValue && nextValue !== selectedValue) {
+      onSelect(nextValue);
+    }
+  };
 
   useEffect(() => {
     const target = listRef.current?.querySelector("[data-wheel-active='true']");
-    target?.scrollIntoView({ block: "center" });
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [selectedValue, options.length]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimerRef.current != null) {
+        window.clearTimeout(scrollTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleScroll = () => {
+    if (scrollTimerRef.current != null) {
+      window.clearTimeout(scrollTimerRef.current);
+    }
+
+    scrollTimerRef.current = window.setTimeout(() => {
+      selectCenteredOption();
+    }, 140);
+  };
 
   return (
     <div className="relative z-10 min-w-0">
-      <div className="h-36 snap-y snap-mandatory overflow-y-auto py-[46px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" ref={listRef}>
+      <div
+        className="h-36 snap-y snap-proximity overflow-y-auto overscroll-contain scroll-smooth py-[46px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        onScroll={handleScroll}
+        ref={listRef}
+      >
         {options.map((option) => {
           const active = selectedValue === option.value;
 
@@ -838,9 +885,11 @@ function WheelColumn({
             <button
               key={option.value}
               className={`flex h-11 w-full snap-center items-center justify-center rounded-2xl text-center transition ${
-                active ? "text-[20px] font-bold text-ink" : "text-[15px] font-semibold text-slate-400"
-              } ${option.disabled ? "opacity-30" : ""}`}
+                active ? "text-[22px] font-black text-ink" : "text-[15px] font-semibold text-slate-400"
+              } ${option.disabled && !active ? "opacity-30" : ""}`}
               data-wheel-active={active ? "true" : undefined}
+              data-wheel-disabled={option.disabled ? "true" : undefined}
+              data-wheel-value={option.value}
               disabled={option.disabled}
               onClick={() => onSelect(option.value)}
               type="button"
@@ -1292,6 +1341,7 @@ function ManualAddressEditor({
   const [locationError, setLocationError] = useState("");
   const [inputValue, setInputValue] = useState(address);
   const reverseLookupSeqRef = useRef(0);
+  const selectedSuggestionRef = useRef("");
 
   useEffect(() => {
     setInputValue(address);
@@ -1299,7 +1349,7 @@ function ManualAddressEditor({
 
   useEffect(() => {
     const query = inputValue.trim();
-    if (query.length < 2) {
+    if (query.length < 2 || query === selectedSuggestionRef.current) {
       setSuggestions([]);
       setSearching(false);
       return;
@@ -1325,15 +1375,6 @@ function ManualAddressEditor({
         }
         const data = (await response.json()) as AddressSuggestion[];
         setSuggestions(data);
-        const first = data[0];
-        if (first) {
-          onCoordinateChange({
-            lat: Number(first.lat),
-            lng: Number(first.lon),
-            accuracyMeters: 30,
-            source: "address_geocode",
-          });
-        }
       } catch {
         if (!controller.signal.aborted) {
           setSuggestions([]);
@@ -1349,10 +1390,11 @@ function ManualAddressEditor({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [inputValue, onCoordinateChange]);
+  }, [inputValue]);
 
   const handleSelect = (suggestion: AddressSuggestion) => {
     const nextAddress = formatKoreanDisplayName(suggestion.display_name) || suggestion.display_name;
+    selectedSuggestionRef.current = nextAddress;
     setInputValue(nextAddress);
     setSuggestions([]);
     setLocationError("");
@@ -1435,6 +1477,7 @@ function ManualAddressEditor({
         placeholder={copy.manualAddressPlaceholder}
         value={inputValue}
         onChange={(event) => {
+          selectedSuggestionRef.current = "";
           setInputValue(event.target.value);
           onAddressChange(event.target.value);
         }}
@@ -1467,6 +1510,7 @@ function ManualAddressEditor({
             <button
               key={`${suggestion.lat}-${suggestion.lon}-${suggestion.display_name}`}
               className="block w-full border-b border-slate-100 px-4 py-3 text-left last:border-b-0"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => handleSelect(suggestion)}
               type="button"
             >
