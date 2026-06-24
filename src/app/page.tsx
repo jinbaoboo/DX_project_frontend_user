@@ -2711,28 +2711,23 @@ function CaptureNoticeDialog({
 
         <div className="phone-scroll min-h-0 flex-1 space-y-3 overflow-y-auto px-5 pb-4">
           <CaptureNoticeCard
-            title="보상 기준을 확인해요"
+            title="보상 기준을 확인"
             description="사진을 바탕으로 AI가 예상 크레딧을 계산해요. 실제 제품 상태에 따라 최종 보상은 달라질 수 있어요."
           />
           <ConsentToggle
             checked={creditPolicyAgreed}
-            title="[필수] 크레딧 산정 기준에 동의해요."
+            title="[필수] 확인했어요"
             onToggle={onToggleCreditPolicy}
           />
 
           <CaptureNoticeCard
-            title="실제 상태 그대로 촬영해요"
+            title="실제 상태 그대로 촬영"
             description="제품의 현재 상태가 잘 보이도록 촬영해 주세요. 고의적인 훼손이나 허위 정보가 확인되면 이용이 제한될 수 있어요."
           />
           <ConsentToggle
             checked={truthfulnessAgreed}
-            title="[필수] 실제 제품 상태와 다름없음을 확인해요."
+            title="[필수] 확인했어요"
             onToggle={onToggleTruthfulness}
-          />
-
-          <CaptureNoticeCard
-            title="외관과 라벨을 순서대로 찍어요"
-            description="제품 전체가 보이는 사진을 먼저 찍고, 다음 화면에서 모델명 라벨을 찍어요."
           />
         </div>
 
@@ -2832,7 +2827,9 @@ function SwapItIntro({
           <p className="text-[13px] font-bold text-lgred">LG ThinQ</p>
           <h1 className="mt-2 text-[34px] font-bold leading-none tracking-tight text-ink">SwapIt</h1>
           <p className="mt-3 max-w-[310px] text-sm font-semibold leading-6 text-slate-500">
-            교체할 가전을 선택하면 사진 촬영부터 보상가 확인, 수거 예약까지 한 번에 진행할 수 있어요.
+            교체할 가전을 선택하면 사진 촬영부터 보상가 확인,
+            <br />
+            수거 예약까지 한 번에 진행할 수 있어요.
           </p>
         </section>
 
@@ -2862,9 +2859,6 @@ function SwapItIntro({
         <section className="mt-3 rounded-[20px] bg-white p-2 shadow-sm">
           <div className="flex items-center justify-between px-3 py-2.5">
             <h2 className="text-sm font-bold text-ink">교환할 가전 선택</h2>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-500">
-              {applianceOptions.length}개
-            </span>
           </div>
           <div className="grid grid-cols-3 gap-2 p-1">
             {applianceOptions.map((option) => {

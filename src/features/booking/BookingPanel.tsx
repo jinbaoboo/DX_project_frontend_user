@@ -144,11 +144,11 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     refreshLocationLabel: "현재 위치를 다시 확인할게요",
     matchingLabel: "빠른 수거 요청 접수 중...",
     callLoadingLabel: "빠른 수거 요청 접수 중...",
-    callSubmitLabel: "바로콜 예약하기",
+    callSubmitLabel: "예약하기",
     mapAdjustHint: "",
     mapPinLabel: "수거 위치",
     manualTitle: "수거 위치를 직접 입력해요",
-    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 수거 위치를 지정할 수 있어요.",
+    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해\n수거 위치를 지정할 수 있어요.",
     manualButtonLabel: "현재 위치로 지정할게요",
     manualAddressPlaceholder: "서울특별시 중구 세종대로 110",
     manualDetailPlaceholder: "상세 위치를 입력해 주세요",
@@ -168,7 +168,7 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     timeDescription: "수거 가능한 시간만 표시돼요. 선택한 시간에 수거 예약이 진행돼요.",
     unavailableTimeLabel: "예약 마감",
     scheduleLoadingLabel: "수거 예약 접수 중...",
-    scheduleSubmitLabel: "수거 예약을 요청할게요",
+    scheduleSubmitLabel: "수거 예약하기",
     addressMapFallback: "수거 위치를 검색해 주세요",
     locationPermissionError:
       "현재 접속 환경에서는 GPS 사용이 제한되어 있어요. HTTPS 환경에서 위치 권한을 허용하거나 수거 위치를 직접 입력해 주세요.",
@@ -186,11 +186,11 @@ const bookingCopies: Record<BookingPurpose, BookingCopy> = {
     refreshLocationLabel: "현재 위치를 다시 확인할게요",
     matchingLabel: "빠른 수거 요청 접수 중...",
     callLoadingLabel: "빠른 수거 요청 접수 중...",
-    callSubmitLabel: "바로콜 예약하기",
+    callSubmitLabel: "예약하기",
     mapAdjustHint: "",
     mapPinLabel: "수거 위치",
     manualTitle: "수거 위치를 직접 입력해요",
-    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해 수거 위치를 지정할 수 있어요.",
+    manualDescription: "현재 위치를 불러오거나 주소 검색 결과를 선택해\n수거 위치를 지정할 수 있어요.",
     manualButtonLabel: "현재 위치로 지정할게요",
     manualAddressPlaceholder: "서울특별시 중구 세종대로 110",
     manualDetailPlaceholder: "상세 주소를 입력해주세요",
@@ -1480,7 +1480,7 @@ function ManualAddressEditor({
           <Service3DIcon type="search" className="h-10 w-10 shrink-0" />
           <div>
             <p className="text-[13px] font-bold text-ink">{copy.manualTitle}</p>
-            <p className="text-xs font-semibold text-slate-500">
+            <p className="whitespace-pre-line text-xs font-semibold text-slate-500">
               {copy.manualDescription}
             </p>
           </div>

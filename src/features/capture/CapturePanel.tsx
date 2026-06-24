@@ -1389,7 +1389,7 @@ function ReviewView({
       ) : null}
 
       <div className="mt-4 space-y-3">
-        <InfoInput label={"\uAC00\uC804 \uC885\uB958"} value={recognizedInfo.applianceType} readOnly onChange={(value) => onChange({ ...recognizedInfo, applianceType: value })} />
+        <InfoInput label={"\uAC00\uC804 \uC885\uB958"} value={applianceLabel} readOnly onChange={() => {}} />
         <InfoInput label={"\uBE0C\uB79C\uB4DC"} value={recognizedInfo.brand} onChange={(value) => onChange({ ...recognizedInfo, brand: value })} />
         <InfoInput label={"\uBAA8\uB378\uBA85"} value={recognizedInfo.modelName} onChange={(value) => onChange({ ...recognizedInfo, modelName: value })} />
         <InfoInput label={"\uC608\uC0C1 \uC5F0\uC2DD"} value={recognizedInfo.estimatedAge} readOnly onChange={(value) => onChange({ ...recognizedInfo, estimatedAge: value })} />

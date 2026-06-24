@@ -432,7 +432,7 @@ export function PurchasePanel({
         LG 교체 제품을 선택해요
       </div>
 
-      <div className="mt-4 rounded-3xl border border-lgred/10 bg-[linear-gradient(135deg,#fff7fa,#ffffff_58%,#f8fafc)] p-4 shadow-sm">
+      <div className="mt-4 rounded-3xl border border-lgred/15 bg-[linear-gradient(135deg,#fff1f6,#ffffff_58%,#fff7fa)] p-4 shadow-sm">
         <div className="flex items-start gap-3">
           <RewardCoinIcon />
           <div className="min-w-0 flex-1">
@@ -448,7 +448,7 @@ export function PurchasePanel({
       </div>
 
       <div className="mt-4">
-        <h3 className="text-[13px] font-bold text-ink">교체제품 카테고리</h3>
+        <h3 className="text-[13px] font-bold text-ink">카테고리</h3>
         <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {categoryOptions.map((category) => {
             const active = selectedCategoryId === category.id;
@@ -592,14 +592,11 @@ export function PurchasePanel({
 
 function RewardCoinIcon() {
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#fff4d6] ring-1 ring-[#f4d27c]">
-      <svg aria-hidden="true" className="h-8 w-8" viewBox="0 0 40 40">
-        <ellipse cx="20" cy="27" fill="#f1b72f" opacity="0.65" rx="10" ry="4" />
-        <path d="M10 23.5v3.3c0 2.4 4.5 4.3 10 4.3s10-1.9 10-4.3v-3.3" fill="#ffd65d" />
-        <ellipse cx="20" cy="23.5" fill="#ffeaa6" rx="10" ry="4.3" stroke="#d9a41f" strokeWidth="1.2" />
-        <path d="M13.2 19.2v3.5c0 2.1 3.1 3.8 6.8 3.8s6.8-1.7 6.8-3.8v-3.5" fill="#ffc73d" />
-        <ellipse cx="20" cy="19.2" fill="#fff1bd" rx="6.8" ry="3.8" stroke="#d9a41f" strokeWidth="1.1" />
-        <path d="M17.3 18.4c1.3-.7 4.1-.7 5.4 0" opacity="0.9" stroke="#ffffff" strokeLinecap="round" strokeWidth="1.5" />
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-lgred/10 ring-1 ring-lgred/20">
+      <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 32 32">
+        <rect x="5" y="7" width="22" height="18" rx="5" fill="#fff7fa" stroke="#bd0044" strokeWidth="1.8" />
+        <path d="M8.8 13.5h14.4" stroke="#bd0044" strokeLinecap="round" strokeWidth="2" />
+        <path d="M10 20.2l3 3 7-7" fill="none" stroke="#bd0044" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" />
       </svg>
     </span>
   );
