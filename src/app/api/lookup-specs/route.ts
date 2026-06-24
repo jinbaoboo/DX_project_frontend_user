@@ -14,8 +14,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "모델명이 없습니다." }, { status: 400 });
     }
 
+    const normalizedModelName = normalizeModelName(modelName);
     const url = new URL("/api/swap-requests/appliance-specs/lookup", API_BASE_URL);
-    url.searchParams.set("modelName", modelName);
+    url.searchParams.set("modelName", normalizedModelName);
 
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       applianceType: spec.applianceType,
       brand: spec.brand,
-      modelName: spec.modelName || normalizeModelName(modelName),
+      modelName: spec.modelName || normalizedModelName,
       capacity: spec.sizeMetric,
       size: spec.sizeGrade,
       releaseYear: undefined,
