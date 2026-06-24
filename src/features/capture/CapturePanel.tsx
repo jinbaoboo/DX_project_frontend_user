@@ -295,17 +295,34 @@ async function callLabelApi(imageData: string): Promise<{ brand?: string; modelN
 }
 
 async function callLookupSpecsApi(modelName: string): Promise<LookupSpecResult> {
-  const response = await fetch("/api/lookup-specs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ modelName }),
-  });
+  const normalizedModelName = modelName.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  const response = await fetch(
+    `/api/swap-requests/appliance-specs/lookup?modelName=${encodeURIComponent(normalizedModelName)}`,
+    { cache: "no-store" },
+  );
 
   if (!response.ok) {
     throw new Error(`Lookup specs failed: ${response.status}`);
   }
 
-  return response.json();
+  const spec = (await response.json()) as {
+    brand?: string;
+    applianceType?: string;
+    modelName?: string;
+    sizeGrade?: string;
+    sizeMetric?: string;
+    weightKg?: number | string | null;
+  };
+
+  return {
+    applianceType: spec.applianceType,
+    brand: spec.brand,
+    modelName: spec.modelName || normalizedModelName,
+    capacity: spec.sizeMetric,
+    size: spec.sizeGrade,
+    releaseYear: undefined,
+    weight_kg: spec.weightKg == null ? undefined : Number(spec.weightKg),
+  };
 }
 
 function knownText(value?: string | null) {
